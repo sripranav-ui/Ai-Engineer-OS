@@ -1,0 +1,350 @@
+// =======================================================
+// Prisma Database Schema — AI Engineer OS
+// PostgreSQL Relational Database Architecture
+// =======================================================
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  STUDENT
+  SPECIALIST
+  LEAD_ENGINEER
+  ADMIN
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  REVIEW
+  TESTING
+  COMPLETED
+}
+
+enum ApplicationStatus {
+  WISHLIST
+  APPLIED
+  INTERVIEWING
+  OFFER_RECEIVED
+  REJECTED
+}
+
+// ─── 1. USER & AUTHENTICATION ─────────────────────────────
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  name          String
+  role          Role           @default(STUDENT)
+  avatar        String?
+  emailVerified Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  profile       UserProfile?
+  settings      UserSettings?
+  sessions      Session[]
+  tokens        RefreshToken[]
+  projects      Project[]
+  notes         Note[]
+  flashcards    Flashcard[]
+  quizAttempts  QuizAttempt[]
+  resumes       Resume[]
+  applications  JobApplication[]
+  companies     DreamCompany[]
+  certificates  Certificate[]
+  conversations AIConversation[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+}
+
+model UserProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  xp            Int      @default(0)
+  level         Int      @default(1)
+  streak        Int      @default(0)
+  currentDay    Int      @default(1)
+  targetRole    String   @default("AI Specialist")
+  salaryGoal    Int      @default(115000)
+  bio           String?
+  githubUrl     String?
+  linkedinUrl   String?
+  skills        String[] @default(["Python", "PyTorch"])
+}
+
+model UserSettings {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme            String   @default("dark")
+  aiProvider       String   @default("openai")
+  aiTemperature    Float    @default(0.7)
+  enableMemory     Boolean  @default(true)
+  enableStreaming  Boolean  @default(true)
+  notifications    Boolean  @default(true)
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// ─── 2. PROJECT MANAGEMENT ─────────────────────────────
+
+model Project {
+  id          String            @id @default(uuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  category    String            @default("AI & Machine Learning")
+  status      String            @default("Active")
+  priority    Priority          @default(MEDIUM)
+  progress    Int               @default(0)
+  favorite    Boolean           @default(false)
+  archived    Boolean           @default(false)
+  deadline    DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  tasks       Task[]
+  sprints     Sprint[]
+  docs        ProjectDoc[]
+  milestones  ProjectMilestone[]
+  activities  ProjectActivity[]
+}
+
+model Task {
+  id          String     @id @default(uuid())
+  projectId   String
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  status      TaskStatus @default(TODO)
+  priority    Priority   @default(MEDIUM)
+  dueDate     DateTime?
+  estHours    Float      @default(2.0)
+  actualHours Float      @default(0.0)
+  labels      String[]   @default(["Feature"])
+  createdAt   DateTime   @default(now())
+
+  subtasks    Subtask[]
+}
+
+model Subtask {
+  id        String   @id @default(uuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  text      String
+  done      Boolean  @default(false)
+}
+
+model Sprint {
+  id                   String   @id @default(uuid())
+  projectId            String
+  project              Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name                 String
+  goal                 String?
+  startDate            DateTime
+  endDate              DateTime
+  status               String   @default("active")
+  targetStoryPoints    Int      @default(30)
+  completedStoryPoints Int      @default(0)
+}
+
+model ProjectDoc {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title     String
+  category  String   @default("Architecture")
+  content   String   @db.Text
+  updatedAt DateTime @updatedAt
+}
+
+model ProjectMilestone {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title     String
+  date      DateTime
+  status    String   @default("planned")
+}
+
+model ProjectActivity {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type      String
+  text      String
+  timestamp DateTime @default(now())
+}
+
+// ─── 3. LEARNING & KNOWLEDGE ──────────────────────────────
+
+model Note {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  content   String   @db.Text
+  category  String   @default("General")
+  tags      String[] @default([])
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Flashcard {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question   String   @db.Text
+  answer     String   @db.Text
+  category   String   @default("General")
+  difficulty String   @default("Medium")
+  interval   Int      @default(1)
+  easeFactor Float    @default(2.5)
+  dueDate    DateTime @default(now())
+  bookmarked Boolean  @default(false)
+}
+
+model QuizAttempt {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizId    String
+  quizTitle String
+  score     Int
+  total     Int
+  pct       Int
+  createdAt DateTime @default(now())
+}
+
+// ─── 4. CAREER & PLACEMENT ────────────────────────────────
+
+model Resume {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  version   String   @default("v1.0")
+  summary   String?  @db.Text
+  skills    String[] @default([])
+  atsScore  Int      @default(85)
+  active    Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+model JobApplication {
+  id             String            @id @default(uuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String
+  company        String
+  location       String?
+  salary         String?
+  status         ApplicationStatus @default(APPLIED)
+  requiredSkills String[]          @default([])
+  appliedDate    DateTime          @default(now())
+}
+
+model DreamCompany {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  role        String
+  targetDate  String
+  status      String   @default("Targeting")
+  salaryRange String?
+}
+
+model Certificate {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  issuer       String
+  issueDate    DateTime
+  credentialId String?
+  verified     Boolean  @default(true)
+}
+
+// ─── 5. AI ENGINE & CHATS ─────────────────────────────────
+
+model AIConversation {
+  id        String      @id @default(uuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  pinned    Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  messages  AIMessage[]
+}
+
+model AIMessage {
+  id             String         @id @default(uuid())
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String         // "user" | "assistant" | "system"
+  content        String         @db.Text
+  timestamp      DateTime       @default(now())
+}
+
+// ─── 6. AUDIT LOGS & NOTIFICATIONS ────────────────────────
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  resource  String
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("info") // "info" | "success" | "warning" | "error"
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}

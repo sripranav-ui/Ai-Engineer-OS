@@ -1,0 +1,23 @@
+// =======================================================
+// response.js — Standardized REST API Response Formatter
+// =======================================================
+
+export const sendSuccess = (res, message, data = null, statusCode = 200) => {
+  return res.status(statusCode).json({
+    success: true,
+    message,
+    data,
+    timestamp: new Date().toISOString(),
+  });
+};
+
+export const sendError = (res, message, errors = null, statusCode = 400) => {
+  return res.status(statusCode).json({
+    success: false,
+    message,
+    errors,
+    timestamp: new Date().toISOString(),
+  });
+};
+
+export default { sendSuccess, sendError };

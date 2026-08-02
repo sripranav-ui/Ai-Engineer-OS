@@ -1,0 +1,84 @@
+/* =======================================================
+   AI ENGINEER OS — STAGE 3: DASHBOARD METRIC CARDS (LIGHT STUDIO)
+   ───────────────────────────────────────────────────────
+   Tactile Pure White Metric Cards:
+   - Pure White surface (#FFFFFF)
+   - Hairline optical border (rgba(0,0,0,0.06))
+   - High legibility stat typography (#1D1D1F)
+   - Restrained status indicators
+======================================================= */
+
+.dashboard-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6) var(--space-7);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-xs);
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--duration-base) var(--ease-out-expo),
+              box-shadow var(--duration-base) var(--ease-out-expo),
+              border-color var(--duration-base) ease;
+}
+
+.dashboard-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.03), transparent);
+}
+
+.dashboard-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1.5px);
+}
+
+.dashboard-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.dashboard-card-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-ghost);
+  margin: 0;
+}
+
+.dashboard-card-icon {
+  color: var(--text-ghost);
+  font-size: 13px;
+}
+
+.dashboard-card-metric {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-hero);
+  line-height: 1;
+  margin-bottom: var(--space-2);
+}
+
+.dashboard-card-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+}
+
+.dashboard-card-trend.up { color: var(--success); }
+.dashboard-card-trend.down { color: var(--danger); }

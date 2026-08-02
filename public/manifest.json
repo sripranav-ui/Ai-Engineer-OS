@@ -1,0 +1,16 @@
+{
+  "short_name": "AI Engineer OS",
+  "name": "AI Engineer OS Desktop Studio Workstation",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#05050A",
+  "theme_color": "#080A10",
+  "display": "standalone",
+  "orientation": "landscape"
+}

@@ -1,16 +1,92 @@
-# React + Vite
+# AI Engineer OS - Enterprise Developer Portal
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+**AI Engineer OS** is an enterprise-grade, premium SaaS developer workspace and training platform. It integrates active curriculum trackers, browser-simulated coding sandboxes, collaborative study hubs, AI career diagnosers, and mock interviewer checkpoints into a unified Dracula/Cyberpunk/Light-themed layout.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🚀 Key Features and Modules
 
-## React Compiler
+- **💻 AI Coding Sandbox**: A simulated browser-IDE containing Jupyter notebooks, stages commit trackers, snippet managers, and interactive command terminals.
+- **🌐 Collaborative Community Hub**: Integrates channel messaging feeds, posts discussion threads, question upvoting grids, hackathons, and mentor calendar slots.
+- **👨‍🏫 AI Career Coach & STAR Chatbot**: Evaluates candidate transcripts using STAR behavioral parameters, analyses skill gaps, and projects career timelines.
+- **📅 Planner & Curriculum Academies**: Organizes task schedules and curriculum stage checkpoints.
+- **⚙️ Preferences Console**: Supports swapping themes (Dracula, Cyberpunk, Light) and primary color variables globally.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the Oxlint configuration
+## 📂 Project Architecture and Directory Structure
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+The project has been refactored to align with enterprise design standards:
+
+```text
+src/
+├── components/
+│   ├── Common/        # Reusable UI Component Library (Buttons, Drawers, Accordions, Toasts, Skeletons)
+│   ├── Layout/        # Shell layout components (Sidebar, Top navigation headers)
+│   └── Dashboard/     # Widget components
+├── context/           # Decomposed React Context state providers (Theme, Auth, Learning, Analytics, Projects)
+├── data/              # Mock databases seed data models
+├── hooks/             # Custom reusable hooks (e.g. keyboard navigation, document titles)
+├── pages/             # Dynamic routes and lazily loaded workspace screens
+├── repositories/      # Decoupled Repository Pattern Layer (UserRepository, ProjectRepository, AIRepository)
+├── services/          # Business logic and AI Orchestrators:
+│   └── ai/            # Multi-Provider AI Provider Engine (OpenAI, Gemini, Claude, Groq, DeepSeek)
+├── styles/            # CSS theme variables, transition timings, and component styles
+└── utils/             # Reusable helper libraries (Console Logger prefix tools)
+```
+
+---
+
+## 📦 UI Component Library Reference
+
+All pages consume unified assets located inside `src/components/Common/`:
+- **Notifications**: `Toast.jsx`, `Alert.jsx`, `EmptyState.jsx`, `ErrorState.jsx`, `SuccessState.jsx`, `LoadingState.jsx` (pulsing skeletons).
+- **Navigation Controls**: `Drawer.jsx`, `Modal.jsx`, `Dropdown.jsx`, `Tooltip.jsx`, `Pagination.jsx`, `SearchBar.jsx`, `FilterPanel.jsx`.
+- **Layout Widgets**: `Button.jsx`, `Card.jsx`, `ProgressCard.jsx`, `Timeline.jsx`, `Badge.jsx`, `Chip.jsx`, `Table.jsx`.
+
+---
+
+## 🤖 Enterprise Multi-Provider AI Engine
+
+Manage AI prompts using the unified client registry container `src/services/ai/`:
+- **`providers/index.js`**: Decouples calling strategies for OpenAI, Gemini, Claude, Groq, Ollama, OpenRouter, and DeepSeek.
+- **`ChatContext.jsx`**: Selects active strategy, routes queries, and computes approximate character-to-token scales and session pricing costs in real-time.
+- **`promptService.js`**: Resolves prompt system template injections.
+- **`conversationService.js`**: Manages sliding context history message chains.
+- **`embeddingService.js`**: Simulates 1536-dimensional float vector generators.
+- **`memoryService.js`**: Persists long-term summaries.
+- **`streamingService.js`**: Dispatches text segments callbacks sequentially.
+
+---
+
+## 🗃️ Decoupled Repository Pattern (Dependency Injection)
+
+Data operations are abstracted behind repositories to keep the view layer decoupled from the persistence engines:
+- Exported under a central container at `src/repositories/index.js`.
+- Shorthand methods `repositories.user()`, `repositories.projects()`, and `repositories.lessons()` access the repositories.
+- Support runtime re-binding for tests or database connections:
+  ```javascript
+  import { repositories } from "./repositories";
+  repositories.register("UserRepository", myProductionRepositoryOverride);
+  ```
+
+---
+
+## 🛠️ Developer Setup & Commands
+
+Get the local development server running:
+
+### Install dependencies
+```bash
+npm install
+```
+
+### Start hot-reload dev server
+```bash
+npm run dev
+```
+
+### Build optimized production bundle
+```bash
+npm run build
+```

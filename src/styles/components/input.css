@@ -1,0 +1,77 @@
+/* =======================================================
+   AI ENGINEER OS — INPUTS, SEARCH & CONTROLS (V2 DARK SYSTEM)
+   ======================================================= */
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-space-2);
+  margin-bottom: var(--v2-space-4);
+}
+
+.form-label {
+  font-family: var(--v2-font-sans);
+  font-size: var(--v2-type-xs);
+  font-weight: 500;
+  color: var(--v2-text-muted);
+}
+
+.form-input,
+.form-textarea,
+.search-input {
+  width: 100%;
+  background: var(--v2-bg-canvas);
+  border: 1px solid var(--v2-border-default);
+  border-radius: var(--v2-radius-md);
+  padding: var(--v2-space-2) var(--v2-space-3);
+  font-family: var(--v2-font-sans);
+  font-size: var(--v2-type-xs);
+  color: var(--v2-text-primary);
+  outline: none;
+  transition: border-color var(--v2-duration-hover) ease;
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder,
+.search-input::placeholder {
+  color: var(--v2-text-ghost);
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.search-input:focus {
+  border-color: var(--v2-primary);
+}
+
+.form-textarea {
+  min-height: 100px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.form-select {
+  width: 100%;
+  background-color: var(--v2-bg-canvas);
+  border: 1px solid var(--v2-border-default);
+  border-radius: var(--v2-radius-md);
+  padding: var(--v2-space-2) var(--v2-space-3);
+  font-family: var(--v2-font-sans);
+  font-size: var(--v2-type-xs);
+  color: var(--v2-text-primary);
+  outline: none;
+  cursor: pointer;
+}
+
+.form-select:focus {
+  border-color: var(--v2-primary);
+}
+
+input[type="checkbox"] {
+  accent-color: var(--v2-primary);
+  cursor: pointer;
+}
+
+input[type="radio"] {
+  accent-color: var(--v2-primary);
+  cursor: pointer;
+}

@@ -1,0 +1,62 @@
+/* =======================================================
+   AI ENGINEER OS — BADGES, TAGS & CHIPS (INDEPENDENT LIGHT)
+   ───────────────────────────────────────────────────────
+   Refined Monospaced Indicators:
+   - JetBrains Mono uppercase typography
+   - Quiet muted fills (#F2F4F7) & hairline optical borders (rgba(0,0,0,0.08))
+   - Precision alignment & high contrast
+======================================================= */
+
+.badge, .chip, .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: 2px var(--space-2-5);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  line-height: 1.4;
+  border-radius: var(--radius-xs);
+  background: var(--surface-3);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  white-space: nowrap;
+  letter-spacing: var(--tracking-wide);
+}
+
+.badge-accent, .badge-primary {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  border-color: var(--border-accent);
+}
+
+.badge-success {
+  background: var(--success-muted);
+  color: var(--success);
+  border-color: rgba(46, 125, 82, 0.18);
+}
+
+.badge-warning {
+  background: var(--warning-muted);
+  color: var(--warning);
+  border-color: rgba(154, 114, 46, 0.18);
+}
+
+.badge-danger {
+  background: var(--danger-muted);
+  color: var(--danger);
+  border-color: rgba(197, 57, 41, 0.18);
+}
+
+.badge-info {
+  background: var(--info-muted);
+  color: var(--info);
+  border-color: rgba(74, 85, 104, 0.18);
+}
+
+.badge-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}

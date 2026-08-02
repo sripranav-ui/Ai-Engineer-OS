@@ -1,0 +1,108 @@
+/* =======================================================
+   AI ENGINEER OS — INTERACTIVE BUTTONS (V2 DARK SYSTEM)
+   ======================================================= */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--v2-space-2);
+  padding: var(--v2-space-2) var(--v2-space-4);
+  font-family: var(--v2-font-sans);
+  font-size: var(--v2-type-xs);
+  font-weight: 500;
+  line-height: 1.4;
+  border-radius: var(--v2-radius-md);
+  border: 1px solid var(--v2-border-subtle);
+  background: var(--v2-bg-surface);
+  color: var(--v2-text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--v2-duration-hover) var(--v2-ease-out),
+              background var(--v2-duration-hover) ease,
+              border-color var(--v2-duration-hover) ease,
+              color var(--v2-duration-hover) ease;
+}
+
+.btn:hover {
+  background: var(--v2-bg-surface-hover);
+  border-color: var(--v2-border-default);
+  color: #ffffff;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn:disabled, .btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ─── Primary Action Button (Indigo Accent) ─── */
+.btn-primary {
+  background: var(--v2-primary);
+  color: #ffffff;
+  border-color: rgba(99, 102, 241, 0.4);
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: var(--v2-primary-hover);
+  color: #ffffff;
+  border-color: rgba(99, 102, 241, 0.6);
+}
+
+/* ─── Secondary Button ─── */
+.btn-secondary {
+  background: var(--v2-bg-surface);
+  border-color: var(--v2-border-subtle);
+  color: var(--v2-text-secondary);
+}
+
+.btn-secondary:hover {
+  background: var(--v2-bg-surface-hover);
+  border-color: var(--v2-border-default);
+  color: var(--v2-text-primary);
+}
+
+/* ─── Ghost / Minimal Button ─── */
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--v2-text-muted);
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--v2-text-primary);
+}
+
+/* ─── Danger Button ─── */
+.btn-danger {
+  background: var(--v2-danger);
+  color: #ffffff;
+  border-color: rgba(244, 63, 94, 0.4);
+}
+
+.btn-danger:hover {
+  background: #e11d48;
+}
+
+/* ─── Outline Button ─── */
+.btn-outline {
+  background: transparent;
+  border-color: var(--v2-border-default);
+  color: var(--v2-text-primary);
+}
+
+.btn-outline:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--v2-border-strong);
+}
+
+.btn-full { width: 100%; }

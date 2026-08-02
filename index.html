@@ -4,9 +4,41 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ai-engineer-os</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Synchronous Pre-Hydration Theme Script (Eliminates FOUC Completely) -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem("theme");
+          if (saved) {
+            try { saved = JSON.parse(saved); } catch (e) {}
+          }
+          var theme = saved || "dark";
+          var themeClass = theme === "light" ? "light-theme" : (theme === "dark" ? "dark-theme" : (theme.startsWith("theme-") ? theme : "theme-" + theme));
+          document.documentElement.className = themeClass;
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {
+          document.documentElement.className = "dark-theme";
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
+    <!-- Geist & Inter for UI, JetBrains Mono for data & code -->
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+    <title>AI Engineer OS</title>
+    <meta name="description" content="A premium desktop studio workstation designed for software engineers." />
   </head>
   <body>
+    <script>
+      (function() {
+        try {
+          var theme = document.documentElement.getAttribute("data-theme") || "dark";
+          var themeClass = theme === "light" ? "light-theme" : (theme === "dark" ? "dark-theme" : (theme.startsWith("theme-") ? theme : "theme-" + theme));
+          document.body.className = themeClass;
+        } catch (e) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

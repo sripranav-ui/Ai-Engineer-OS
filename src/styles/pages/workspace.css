@@ -1,0 +1,253 @@
+/* =======================================================
+   AI ENGINEER OS — WORKSPACE PAGE (STUDIO OS SPEC)
+   ───────────────────────────────────────────────────────
+   Cursor + Linear + Raycast Studio Workspace Architecture:
+   - Floating Raycast Command Launcher Box
+   - Asymmetrical 2-Column Desktop Operating System Layout
+   - Pure White Studio Panels (#FFFFFF) on Warm Paper (#FBFBFD)
+   - High contrast Geist headlines (#1D1D1F) & Slate body (#51525C)
+   - Zero hardcoded ugly inline styles
+======================================================= */
+
+.workspace-shell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding-bottom: var(--space-16);
+  animation: pageEnter 0.3s var(--ease-out-expo) forwards;
+}
+
+/* ─── Top Command Header Block ─── */
+.workspace-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-6);
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.workspace-greeting-title {
+  font-family: var(--font-display);
+  font-size: var(--text-hero);
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-hero);
+  line-height: 1.05;
+  margin: 0 0 var(--space-2) 0;
+}
+
+.workspace-greeting-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.workspace-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* ─── Raycast-Style AI Command Launcher Bar ─── */
+.workspace-command-bar {
+  background: var(--surface-1);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4) var(--space-5);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  transition: all var(--duration-base) var(--ease-smooth);
+}
+
+.workspace-command-bar:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-lg), 0 0 0 3px var(--accent-subtle);
+}
+
+.command-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.command-search-icon {
+  font-size: 16px;
+  color: var(--text-ghost);
+  flex-shrink: 0;
+}
+
+.command-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.command-input::placeholder {
+  color: var(--text-ghost);
+}
+
+.command-shortcut-hint {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-default);
+}
+
+.command-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ─── Main Asymmetrical Desktop Layout (68% / 32%) ─── */
+.workspace-layout-grid {
+  display: grid;
+  grid-template-columns: 1.9fr 1fr;
+  gap: var(--space-8);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .workspace-layout-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+  }
+}
+
+.workspace-main-column,
+.workspace-side-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* ─── Daily Quote Banner ─── */
+.workspace-quote-banner {
+  padding: var(--space-3-5) var(--space-4-5);
+  background: var(--surface-2);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+}
+
+/* ─── Task Item Rows ─── */
+.task-item-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2-5) var(--space-3-5);
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--duration-base) var(--ease-smooth);
+}
+
+.task-item-row:hover {
+  background: var(--surface-3);
+  border-color: var(--border-default);
+}
+
+.task-item-row.completed span {
+  text-decoration: line-through;
+  color: var(--text-ghost);
+}
+
+/* ─── Pomodoro Timer Display ─── */
+.pomo-studio-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.pomo-timer-display {
+  font-family: var(--font-mono);
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-tight);
+}
+
+/* ─── Weekly Commit Graph Columns ─── */
+.commit-graph-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 60px;
+  padding: 0 var(--space-1);
+  gap: var(--space-2);
+}
+
+.commit-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: var(--space-1);
+}
+
+.commit-bar {
+  width: 100%;
+  max-width: 12px;
+  background: var(--accent);
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  transition: height 0.4s var(--ease-out-expo);
+}
+
+.commit-day-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-ghost);
+}
+
+/* ─── Curriculum Resume Cards Grid ─── */
+.curriculum-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+}
+
+.curriculum-card {
+  padding: var(--space-5);
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 125px;
+  transition: all var(--duration-base) var(--ease-smooth);
+}
+
+.curriculum-card:hover {
+  background: var(--surface-1);
+  border-color: var(--border-default);
+  box-shadow: var(--shadow-xs);
+}

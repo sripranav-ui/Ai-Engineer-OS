@@ -1,0 +1,39 @@
+/* Version 2 Desktop Operating Shell Styles */
+@import "../../styles/designTokens.css";
+
+.desktop-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.desktop-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.desktop-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+.desktop-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
+}
+
+.os-glass-panel {
+  background: rgba(18, 18, 24, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--v2-border-subtle);
+}
+
+.os-glow-active {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.25);
+}
+
+/* 3-Column Shell Container Layout */
+.v2-shell-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--v2-bg-canvas);
+  color: var(--v2-text-primary);
+  overflow: hidden;
+  user-select: none;
+}

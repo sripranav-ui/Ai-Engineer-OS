@@ -1,0 +1,180 @@
+/* =======================================================
+   AI ENGINEER OS — CODING WORKSPACE (LUMEN)
+======================================================= */
+
+.coding-workspace-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  min-height: 600px;
+}
+
+@media (max-width: 1024px) {
+  .coding-workspace-layout { grid-template-columns: 1fr; }
+}
+
+.coding-editor {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.coding-editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-ground);
+}
+
+.coding-editor-tabs { display: flex; gap: var(--space-1); }
+
+.coding-editor-tab {
+  padding: var(--space-1-5) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--text-ghost);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--duration-base) var(--ease-smooth);
+  border: none;
+  background: none;
+}
+
+.coding-editor-tab:hover { color: var(--text-secondary); background: var(--surface-1); }
+.coding-editor-tab.active { color: var(--text-primary); background: var(--surface-2); font-weight: 500; }
+.coding-editor-actions { display: flex; gap: var(--space-1); }
+
+.coding-editor-content { flex: 1; padding: var(--space-4); overflow: auto; }
+
+.coding-editor-content textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  resize: none;
+  tab-size: 2;
+}
+
+.coding-terminal {
+  background: var(--surface-ground);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.coding-terminal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.coding-terminal-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-ghost);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.coding-terminal-content {
+  flex: 1;
+  padding: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  overflow: auto;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.coding-file-explorer {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+
+.file-tree-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1-5) var(--space-2-5);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--duration-base) var(--ease-smooth);
+}
+
+.file-tree-item:hover { background: var(--surface-2); color: var(--text-secondary); }
+.file-tree-item.active { background: var(--surface-3); color: var(--accent); }
+.file-tree-icon { font-size: 12px; opacity: 0.5; }
+
+.coding-problem {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+}
+
+.coding-problem-title {
+  font-family: var(--font-sans);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-3) 0;
+}
+
+.coding-problem-difficulty {
+  display: inline-flex;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  padding: 2px var(--space-2-5);
+  border-radius: var(--radius-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.coding-problem-difficulty.easy { background: var(--success-muted); color: var(--success); }
+.coding-problem-difficulty.medium { background: var(--warning-muted); color: var(--warning); }
+.coding-problem-difficulty.hard { background: var(--danger-muted); color: var(--danger); }
+
+.coding-problem-description {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-top: var(--space-3);
+}
+
+.test-results { display: flex; flex-direction: column; gap: 2px; }
+
+.test-result-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2-5) var(--space-3-5);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-sm);
+}
+
+.test-result-item.pass { background: var(--success-muted); color: var(--success); }
+.test-result-item.fail { background: var(--danger-muted); color: var(--danger); }

@@ -1,0 +1,132 @@
+/* =======================================================
+   AI ENGINEER OS — VERSION 2 GLOBAL DESIGN SYSTEM TOKENS
+   =======================================================
+   Design Principles: Minimal, Professional, Premium, Fast, High Contrast.
+   Typography: Inter, Geist, JetBrains Mono.
+   Palette: Near Black (#09090b), Indigo (#6366f1), Cyan (#06b6d4),
+   Emerald (#10b981), Amber (#f59e0b), Rose (#f43f5e).
+   Spacing: 8px Strict Grid System.
+   ======================================================= */
+
+:root {
+  /* ─── Base Color Tokens ─── */
+  --v2-bg-canvas:          #09090b;
+  --v2-bg-sidebar:         #09090b;
+  --v2-bg-surface:         #121218;
+  --v2-bg-surface-hover:   #181824;
+  --v2-bg-elevated:        #1d1d28;
+  --v2-bg-overlay:         rgba(9, 9, 11, 0.82);
+
+  /* ─── Brand & Status Accent Colors ─── */
+  --v2-primary:            #6366f1;
+  --v2-primary-hover:      #4f46e5;
+  --v2-primary-light:      rgba(99, 102, 241, 0.15);
+  
+  --v2-accent-cyan:        #06b6d4;
+  --v2-accent-cyan-light:  rgba(6, 182, 212, 0.15);
+  
+  --v2-success:            #10b981;
+  --v2-success-light:      rgba(16, 185, 129, 0.15);
+  
+  --v2-warning:            #f59e0b;
+  --v2-warning-light:      rgba(245, 158, 11, 0.15);
+  
+  --v2-danger:             #f43f5e;
+  --v2-danger-light:       rgba(244, 63, 94, 0.15);
+
+  /* ─── Typography & Contrast Tokens (AA Compliant) ─── */
+  --v2-font-sans:          'Inter', 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  --v2-font-mono:          'JetBrains Mono', monospace;
+
+  --v2-text-primary:       #f8fafc;
+  --v2-text-secondary:     #cbd5e1;
+  --v2-text-muted:         #94a3b8;
+  --v2-text-ghost:         #64748b;
+
+  /* ─── Font Scale ─── */
+  --v2-type-xs:            11px;
+  --v2-type-sm:            12px;
+  --v2-type-base:          13px;
+  --v2-type-md:            15px;
+  --v2-type-lg:            18px;
+  --v2-type-xl:            22px;
+  --v2-type-2xl:           28px;
+  --v2-type-3xl:           34px;
+
+  /* ─── 8px Spacing Grid ─── */
+  --v2-space-1:            4px;
+  --v2-space-2:            8px;
+  --v2-space-3:            12px;
+  --v2-space-4:            16px;
+  --v2-space-5:            20px;
+  --v2-space-6:            24px;
+  --v2-space-8:            32px;
+  --v2-space-10:           40px;
+  --v2-space-12:           48px;
+  --v2-space-16:           64px;
+
+  /* ─── Radius Tokens ─── */
+  --v2-radius-sm:          6px;
+  --v2-radius-md:          8px;
+  --v2-radius-lg:          12px;
+  --v2-radius-xl:          16px;
+  --v2-radius-full:        9999px;
+
+  /* ─── Borders & Focus Rings ─── */
+  --v2-border-subtle:      rgba(255, 255, 255, 0.06);
+  --v2-border-default:     rgba(255, 255, 255, 0.1);
+  --v2-border-strong:      rgba(255, 255, 255, 0.18);
+  --v2-border-primary:     rgba(99, 102, 241, 0.4);
+
+  --v2-focus-ring:         0 0 0 2px rgba(99, 102, 241, 0.5);
+  --v2-shadow-sm:          0 2px 6px rgba(0, 0, 0, 0.4);
+  --v2-shadow-md:          0 6px 18px rgba(0, 0, 0, 0.5);
+  --v2-shadow-lg:          0 12px 32px rgba(0, 0, 0, 0.7);
+
+  /* ─── Standardized Cubic-Bezier Motion Timings ─── */
+  --v2-ease-out:           cubic-bezier(0.16, 1, 0.3, 1);
+  --v2-duration-hover:     150ms;
+  --v2-duration-normal:    200ms;
+  --v2-duration-modal:     250ms;
+  --v2-duration-drawer:    300ms;
+}
+
+/* ─── Global Selection & Base Fills ─── */
+::selection {
+  background-color: rgba(99, 102, 241, 0.35);
+  color: #ffffff;
+}
+
+body {
+  font-family: var(--v2-font-sans);
+  background-color: var(--v2-bg-canvas);
+  color: var(--v2-text-primary);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbars */
+.v2-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.v2-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.v2-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+.v2-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
+}
+
+/* Standardized Glass Utility */
+.v2-glass {
+  background: rgba(18, 18, 24, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--v2-border-subtle);
+}

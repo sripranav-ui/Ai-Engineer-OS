@@ -1,0 +1,45 @@
+/* =======================================================
+   AI ENGINEER OS — STAGE 3: PROGRESS BARS (LIGHT STUDIO)
+   ───────────────────────────────────────────────────────
+   Modern, thin, smooth, rounded progress bars with
+   subtle Warm Obsidian Titanium (#1D1D21) fill.
+======================================================= */
+
+.progress-bar-container,
+.progress-bar-track {
+  width: 100%;
+  height: 4px;
+  background: var(--surface-3);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+  transition: width 0.6s var(--ease-out-expo);
+  box-shadow: 0 0 6px var(--accent-muted);
+}
+
+.progress-bar-sm { height: 2px; }
+.progress-bar-lg { height: 6px; }
+
+/* ─── Custom Radial SVG Progress ─── */
+.circular-progress {
+  transform: rotate(-90deg);
+}
+
+.circular-progress-circle-bg {
+  fill: none;
+  stroke: var(--surface-3);
+}
+
+.circular-progress-circle-fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.7s var(--ease-out-expo);
+}
