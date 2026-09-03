@@ -1,253 +1,87 @@
 /* =======================================================
-   AI ENGINEER OS — INDEPENDENT LIGHT STUDIO THEME ENGINE
-   ───────────────────────────────────────────────────────
-   Permanent Specification: Apple macOS, Linear Light, Notion,
-   Arc Browser, Raycast, Cursor IDE, GitHub Desktop Inspired.
-   
-   Exact Light Palette Tokens:
-   - Canvas      : #F7F8FA
-   - Cards       : #FFFFFF
-   - Inputs      : #FFFFFF
-   - Hover       : #F2F4F7
-   - Borders     : rgba(0, 0, 0, 0.08)
-   - Dividers    : rgba(0, 0, 0, 0.06)
-   - Primary Text: #1D1D1F
-   - Secondary   : #5B6472
-   - Muted       : #8A93A2
-   - Accent      : Warm Titanium Gold (#C6A47E / #1D1D21)
-======================================================= */
+   AI ENGINEER OS — BASE CSS VARIABLES ALIAS ENGINE
+   =======================================================
+   Synchronized with Frozen Product Design Specification
+   ======================================================= */
 
-:root,
-html.light-theme,
-html[data-theme="light"],
-body.light-theme,
-body[data-theme="light"] {
-  /* ─── Workstation Typography Stack ─── */
-  --font-display: 'Geist', 'Inter', -apple-system, sans-serif;
-  --font-sans:    'Inter', 'Geist', system-ui, sans-serif;
-  --font-mono:    'JetBrains Mono', 'SF Mono', monospace;
+:root {
+  /* ─── Typography Stack ─── */
+  --font-display: var(--font-sans);
+  --font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 
-  /* ─── DARK OBSIDIAN WORKSTATION CANVAS & SURFACES ─── */
-  --color-canvas:    #05050A; /* Deep Obsidian Workstation Canvas */
-  --color-dock:      #080A10; /* Command Rail Surface */
-  --color-panel:     #0E121E; /* Obsidian Workstation Cards */
-  --color-elevated:  #121727; /* Elevated Surface */
+  /* ─── Color Hierarchy ─── */
+  --color-canvas:    var(--bg-app);
+  --color-dock:      var(--bg-surface-0);
+  --color-panel:     var(--bg-surface-1);
+  --color-elevated:  var(--bg-surface-2);
 
-  --background:      var(--color-canvas);
-  --surface-ground:  var(--color-dock);
-  --surface-1:       var(--color-panel);
-  --surface-2:       #121727; /* Card Surface */
-  --surface-3:       #161C2E; /* Interactive Hover & Selected States */
-  --surface-4:       #1B2238; /* Subtle Inset Fills & Track Fills */
-  --surface-overlay: rgba(5, 5, 10, 0.94);
-  --surface-glass:   rgba(14, 18, 30, 0.92);
+  --background:      var(--bg-app);
+  --surface-ground:  var(--bg-surface-0);
+  --surface-1:       var(--bg-surface-1);
+  --surface-2:       var(--bg-surface-2);
+  --surface-3:       var(--bg-surface-3);
+  --surface-overlay: var(--bg-overlay);
 
-  /* ─── Hairline Optical Borders (Dark Studio Spec) ─── */
+  /* Hairline Borders */
   --border-subtle:   rgba(255, 255, 255, 0.04);
-  --border-default:  rgba(255, 255, 255, 0.07);
-  --border-strong:   rgba(255, 255, 255, 0.12);
-  --border-accent:   rgba(198, 164, 126, 0.25);
-  --border-hover:    rgba(255, 255, 255, 0.18);
-  --divider:         rgba(255, 255, 255, 0.06);
+  --border-default:  rgba(255, 255, 255, 0.08);
+  --border-strong:   rgba(255, 255, 255, 0.16);
+  --border-focus:    rgba(99, 102, 241, 0.40);
 
-  /* ─── Accent Tokens (Warm Titanium Gold & Deep Titanium) ─── */
-  --accent:          #C6A47E;
-  --accent-hover:    #D4B38D;
-  --accent-muted:    rgba(198, 164, 126, 0.15);
-  --accent-subtle:   rgba(198, 164, 126, 0.08);
-  --accent-ghost:    rgba(198, 164, 126, 0.04);
-  --accent-gold:     #C6A47E;
+  /* Accents */
+  --accent:          var(--accent-primary);
+  --accent-hover:    var(--accent-hover);
+  --accent-muted:    var(--accent-glow);
 
-  /* ─── High Contrast Reading Hierarchy (Dark Studio Spec) ─── */
-  --text-primary:    #F8FAFC; /* Primary Text White */
-  --text-secondary:  #94A3B8; /* High Legibility Body Slate */
-  --text-tertiary:   #64748B; /* Crisp Metadata & Labels */
-  --text-ghost:      #475569; /* Crisp Overlines & Hints */
-  --text-inverse:    #05050A;
+  /* High Contrast Reading Hierarchy */
+  --text-primary:    #F8FAFC;
+  --text-secondary:  #94A3B8;
+  --text-tertiary:   #64748B;
+  --text-ghost:      #475569;
 
-  /* ─── Restrained Functional Status Tokens ─── */
-  --success:         #2E7D52;
-  --success-muted:   rgba(46, 125, 82, 0.08);
-  --warning:         #9A722E;
-  --warning-muted:   rgba(154, 114, 46, 0.08);
-  --danger:          #C53929;
-  --danger-muted:    rgba(197, 57, 41, 0.08);
-  --info:            #4A5568;
-  --info-muted:      rgba(74, 85, 104, 0.08);
+  /* Status Colors */
+  --success:         var(--semantic-success);
+  --warning:         var(--semantic-warning);
+  --danger:          var(--semantic-danger);
+  --info:            var(--semantic-info);
 
-  /* ─── Backward Compatibility Aliases ─── */
-  --primary:          var(--accent);
+  /* Aliases for Component CSS */
+  --primary:          var(--accent-primary);
   --primary-hover:    var(--accent-hover);
-  --title:            var(--text-primary);
-  --text:             var(--text-secondary);
-  --text-muted:       var(--text-tertiary);
-  --card-bg:          var(--surface-1);
-  --card-bg-elevated: var(--surface-2);
+  --card-bg:          var(--bg-surface-1);
+  --card-bg-elevated: var(--bg-surface-2);
   --border:           var(--border-default);
-  --sidebar-bg:       var(--surface-ground);
-  --content-bg:       var(--background);
-  --input-bg:         var(--surface-1);
+  --sidebar-bg:       var(--bg-surface-0);
+  --content-bg:       var(--bg-app);
+  --input-bg:         var(--bg-surface-1);
   --input-border:     var(--border-default);
 
-  /* ─── Spacing Token Scale ─── */
-  --space-0:   0;
-  --space-px:  1px;
-  --space-0-5: 2px;
-  --space-1:   4px;
-  --space-1-5: 6px;
-  --space-2:   8px;
-  --space-2-5: 10px;
-  --space-3:   12px;
-  --space-3-5: 14px;
-  --space-4:   16px;
-  --space-4-5: 18px;
-  --space-5:   20px;
-  --space-6:   24px;
-  --space-7:   28px;
-  --space-8:   32px;
-  --space-10:  40px;
-  --space-12:  48px;
-  --space-14:  56px;
-  --space-16:  64px;
-  --space-20:  80px;
-  --space-24:  96px;
-  --space-32:  128px;
+  /* 8px Spacing Grid */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
 
-
-  /* ─── Type Scale & Optical Tracking ─── */
-  --text-2xs:  10px;
-  --text-xs:   11px;
-  --text-sm:   13px;
-  --text-base: 14.5px;
-  --text-md:   16.5px;
-  --text-lg:   20px;
-  --text-xl:   24px;
-  --text-2xl:  32px;
-  --text-3xl:  42px;
-  --text-4xl:  52px;
-  --text-5xl:  64px;
-  --text-hero: 52px;
-
-  --tracking-hero:   -0.045em;
-  --tracking-title:  -0.035em;
-  --tracking-tight:  -0.018em;
-  --tracking-normal: 0em;
-  --tracking-wide:   0.05em;
-  --tracking-caps:   0.14em;
-
-  --font-size-xs:   var(--text-xs);
-  --font-size-sm:   var(--text-sm);
-  --font-size-base: var(--text-base);
-  --font-size-lg:   var(--text-lg);
-  --font-size-xl:   var(--text-xl);
-  --font-size-2xl:  var(--text-2xl);
-
-  /* ─── Font Weights ─── */
-  --font-weight-light:    300;
-  --font-weight-regular:  400;
-  --font-weight-medium:   500;
-  --font-weight-semibold: 600;
-  --font-weight-bold:     700;
-  --font-weight-black:    800;
-
-  /* ─── Border Radii ─── */
-  --radius-xs:   3px;
+  /* Radii */
   --radius-sm:   6px;
   --radius-md:   10px;
   --radius-lg:   16px;
-  --radius-xl:   20px;
-  --radius-2xl:  24px;
   --radius-full: 9999px;
 
-  /* ─── Quiet Studio Shadows (Linear / macOS Spec) ─── */
-  --shadow-xs:    0 1px 2px rgba(0, 0, 0, 0.03);
-  --shadow-sm:    0 2px 8px rgba(0, 0, 0, 0.04);
-  --shadow-md:    0 4px 16px rgba(0, 0, 0, 0.05);
-  --shadow-lg:    0 8px 24px rgba(0, 0, 0, 0.06);
-  --shadow-xl:    0 16px 40px rgba(0, 0, 0, 0.08);
-  --shadow-float: 0 24px 60px rgba(0, 0, 0, 0.1);
-  --shadow-glow:  0 0 20px rgba(0, 0, 0, 0.04);
+  /* Shadows */
+  --shadow-sm:    var(--shadow-sm);
+  --shadow-md:    var(--shadow-md);
+  --shadow-lg:    var(--shadow-lg);
+  --shadow-float: var(--shadow-modal);
 
-  --elev-none: none;
-  --elev-low:  var(--shadow-sm);
-  --elev-med:  var(--shadow-md);
-  --elev-high: var(--shadow-lg);
-
-  /* ─── Weighted Motion ─── */
-  --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-smooth:    cubic-bezier(0.4, 0, 0.2, 1);
-
-  --duration-fast:    120ms;
-  --duration-base:    180ms;
-  --duration-slow:    300ms;
-
-  --opacity-disabled: 0.35;
-  --opacity-hover:    0.85;
-
-  --z-base:     1;
-  --z-dropdown: 100;
-  --z-sticky:   200;
-  --z-popover:  400;
-  --z-overlay:  500;
-  --z-modal:    1000;
-  --z-confirm:  1200;
-  --z-toast:    1500;
-  --z-rail:     2000;
-  --z-grain:    9999;
-
-  --sidebar-width: 220px;
-}
-
-/* ═══════════════════════════════════════════════════════
-   DARK THEME OVERRIDES (Optional User Preference)
-═══════════════════════════════════════════════════════ */
-html.dark-theme,
-html.theme-dark,
-html[data-theme="dark"],
-html[data-theme="theme-dark"],
-html.theme-dracula,
-html.theme-cyberpunk,
-body.dark-theme,
-body.theme-dark,
-body[data-theme="dark"],
-body[data-theme="theme-dark"],
-body.theme-dracula,
-body.theme-cyberpunk {
-  --color-canvas:    #09090B;
-  --color-dock:      #0E0F12;
-  --color-panel:     #121317;
-  --color-elevated:  #17191F;
-
-  --background:      var(--color-canvas);
-  --surface-ground:  var(--color-dock);
-  --surface-1:       var(--color-panel);
-  --surface-2:       var(--color-elevated);
-  --surface-3:       #1F2129;
-  --surface-4:       #272A34;
-  --surface-overlay: rgba(9, 9, 11, 0.94);
-  --surface-glass:   rgba(18, 19, 23, 0.88);
-
-  --border-subtle:   rgba(255, 255, 255, 0.04);
-  --border-default:  rgba(255, 255, 255, 0.07);
-  --border-strong:   rgba(255, 255, 255, 0.12);
-  --border-accent:   rgba(198, 164, 126, 0.25);
-
-  --accent:          #C6A47E;
-  --accent-hover:    #D4B38D;
-  --accent-muted:    rgba(198, 164, 126, 0.12);
-  --accent-subtle:   rgba(198, 164, 126, 0.05);
-
-  --text-primary:    #F3F3F5;
-  --text-secondary:  #9496A1;
-  --text-tertiary:   #60626C;
-  --text-ghost:      #3C3E47;
-  --text-inverse:    #09090B;
-
-  --primary:         var(--accent);
-  --title:           #F3F3F5;
-  --text:            #9496A1;
-  --card-bg:         var(--surface-1);
-  --border:          var(--border-default);
-  --sidebar-bg:      var(--surface-ground);
-  --content-bg:      var(--background);
+  /* Motion */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-base: 200ms;
 }

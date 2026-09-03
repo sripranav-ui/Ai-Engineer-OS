@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ActivityBar from "./ActivityBar.jsx";
 import DesktopSidebar from "./DesktopSidebar.jsx";
@@ -7,6 +7,7 @@ import RightInspector from "./RightInspector.jsx";
 import BottomStatusBar from "./BottomStatusBar.jsx";
 import CommandPaletteModal from "./CommandPaletteModal.jsx";
 import shortTermMemory from "../../services/ai/memory/shortTermMemory.js";
+import { NotificationContext } from "../../context/NotificationContext";
 import { Search, X, CheckCircle, AlertTriangle, AlertCircle, Info } from "lucide-react";
 import "./desktopStyles.css";
 
@@ -66,10 +67,9 @@ export function DesktopLayout({ children }) {
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
 
-  // Notification Queue System State
-  const [notifications, setNotifications] = useState([
-    { id: 1, type: "info", title: "AI Engineer OS Active", message: "Conversational AI workspace ready." },
-  ]);
+  // Notification Queue System (Consuming NotificationContext)
+  const notificationCtx = useContext(NotificationContext);
+  const notifications = notificationCtx?.notifications || [];
 
   useEffect(() => {
     const tab = PATH_TAB_MAP[location.pathname] || "assistant";
@@ -156,13 +156,14 @@ export function DesktopLayout({ children }) {
               <Search className="w-4 h-4 text-indigo-400 mr-3 shrink-0" />
               <input
                 type="text"
+                aria-label="Universal Search Query"
                 value={globalSearchQuery}
                 onChange={(e) => setGlobalSearchQuery(e.target.value)}
                 placeholder="Universal Search across code, conversations, notes, projects & documents... (Ctrl+Shift+F)"
                 autoFocus
                 className="flex-1 bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
               />
-              <button onClick={() => setIsGlobalSearchOpen(false)} className="p-1 text-slate-400 hover:text-white">
+              <button onClick={() => setIsGlobalSearchOpen(false)} aria-label="Close Drawer" className="p-1 text-slate-400 hover:text-white">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -196,29 +197,34 @@ export function DesktopLayout({ children }) {
       )}
 
       <div className="fixed bottom-10 right-6 z-50 space-y-2 max-w-sm">
-        {notifications.map((n) => (
-          <div
-            key={n.id}
-            className={`p-3.5 rounded-xl border backdrop-blur-xl shadow-xl flex items-start gap-3 text-xs animate-in slide-in-from-right-5 duration-200 ${
-              n.type === "success"
-                ? "bg-emerald-950/90 border-emerald-500/30 text-emerald-100"
-                : n.type === "warning"
-                ? "bg-amber-950/90 border-amber-500/30 text-amber-100"
-                : n.type === "error"
-                ? "bg-rose-950/90 border-rose-500/30 text-rose-100"
-                : "bg-[#0e0e14]/95 border-indigo-500/30 text-slate-100"
-            }`}
-          >
-            {n.type === "success" && <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />}
-            {n.type === "warning" && <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />}
-            {n.type === "error" && <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />}
-            {n.type === "info" && <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />}
-            <div className="flex-1">
-              <div className="font-bold text-white tracking-tight">{n.title}</div>
-              <div className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">{n.message}</div>
+        {notifications.map((n) => {
+          const toastType = n.priority || n.type || "info";
+          return (
+            <div
+              key={n.id}
+              onClick={() => notificationCtx?.deleteNotification?.(n.id)}
+              className={`p-3.5 rounded-xl border backdrop-blur-xl shadow-xl flex items-start gap-3 text-xs animate-in slide-in-from-right-5 duration-200 cursor-pointer ${
+                toastType === "success"
+                  ? "bg-emerald-950/90 border-emerald-500/30 text-emerald-100"
+                  : toastType === "warning"
+                  ? "bg-amber-950/90 border-amber-500/30 text-amber-100"
+                  : toastType === "error"
+                  ? "bg-rose-950/90 border-rose-500/30 text-rose-100"
+                  : "bg-[#0e0e14]/95 border-indigo-500/30 text-slate-100"
+              }`}
+              title="Click to dismiss"
+            >
+              {toastType === "success" && <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />}
+              {toastType === "warning" && <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />}
+              {toastType === "error" && <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />}
+              {toastType === "info" && <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />}
+              <div className="flex-1">
+                <div className="font-bold text-white tracking-tight">{n.title}</div>
+                <div className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">{n.message}</div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

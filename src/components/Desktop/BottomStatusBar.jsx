@@ -3,6 +3,7 @@ import { Activity, Server, Database, GitMerge, Bot, Eye } from "lucide-react";
 import mcpServerManager from "../../services/mcp/mcpServerManager.js";
 import shortTermMemory from "../../services/ai/memory/shortTermMemory.js";
 import executionMonitor from "../../services/ai/agents/executionMonitor.js";
+import RuntimeStatusBadge from "../Runtime/RuntimeStatusBadge.jsx";
 
 export function BottomStatusBar({ onToggleInspector, isInspectorOpen }) {
   const [mcpCount, setMcpCount] = useState(0);
@@ -27,8 +28,10 @@ export function BottomStatusBar({ onToggleInspector, isInspectorOpen }) {
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5 text-emerald-400">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span>OS Online (200 OK)</span>
+          <span>OS Online</span>
         </div>
+
+        <RuntimeStatusBadge />
 
         <div className="flex items-center gap-1.5 text-indigo-300">
           <Database className="w-3 h-3 text-indigo-400" />

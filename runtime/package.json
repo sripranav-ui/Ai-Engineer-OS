@@ -1,0 +1,15 @@
+{
+  "name": "ai-engineer-os-local-runtime",
+  "version": "1.4.0",
+  "description": "Local Agent Runtime & Developer Tool Gateway Daemon for AI Engineer OS",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}

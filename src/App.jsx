@@ -8,33 +8,33 @@ import Layout from "./components/Layout/Layout";
 // Skeleton Loaders
 import { PageSkeleton, DashboardSkeleton } from "./components/Common/Skeleton";
 
-// Direct Page Imports
-import LearningPage from "./pages/LearningPage";
-import RoadmapPage from "./pages/RoadmapPage";
-import ProjectsPage from "./pages/ProjectsPage";
-import CertificatesPage from "./pages/CertificatesPage";
-import SettingsPage from "./pages/SettingsPage";
-import AnalyticsPage from "./pages/AnalyticsPage";
-import PlannerPage from "./pages/PlannerPage";
-import AssistantPage from "./pages/AssistantPage";
-import PlacementPage from "./pages/PlacementPage";
+// Route-Level Lazy-Loaded Pages for Production Bundle Optimization
+const LearningPage = React.lazy(() => import("./pages/LearningPage"));
+const RoadmapPage = React.lazy(() => import("./pages/RoadmapPage"));
+const ProjectsPage = React.lazy(() => import("./pages/ProjectsPage"));
+const CertificatesPage = React.lazy(() => import("./pages/CertificatesPage"));
+const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
+const AnalyticsPage = React.lazy(() => import("./pages/AnalyticsPage"));
+const PlannerPage = React.lazy(() => import("./pages/PlannerPage"));
+const AssistantPage = React.lazy(() => import("./pages/AssistantPage"));
+const PlacementPage = React.lazy(() => import("./pages/PlacementPage"));
 
 // Auth & Standalone Pages
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import ForgotPassword from "./pages/ForgotPassword";
-import ProfilePage from "./pages/ProfilePage";
-import GamificationPage from "./pages/GamificationPage";
-import ResumeBuilderPage from "./pages/ResumeBuilderPage";
-import InterviewPrepPage from "./pages/InterviewPrepPage";
-import NotesPage from "./pages/NotesPage";
-import NotFoundPage from "./pages/NotFoundPage";
-import PortfolioHubPage from "./pages/PortfolioHubPage";
-import KnowledgeHubPage from "./pages/KnowledgeHubPage";
-import CommunityPage from "./pages/CommunityPage";
-import CodingWorkspacePage from "./pages/CodingWorkspacePage";
-import CareerCoachPage from "./pages/CareerCoachPage";
-import PluginsPage from "./pages/PluginsPage";
+const LoginPage = React.lazy(() => import("./pages/LoginPage"));
+const RegisterPage = React.lazy(() => import("./pages/RegisterPage"));
+const ForgotPassword = React.lazy(() => import("./pages/ForgotPassword"));
+const ProfilePage = React.lazy(() => import("./pages/ProfilePage"));
+const GamificationPage = React.lazy(() => import("./pages/GamificationPage"));
+const ResumeBuilderPage = React.lazy(() => import("./pages/ResumeBuilderPage"));
+const InterviewPrepPage = React.lazy(() => import("./pages/InterviewPrepPage"));
+const NotesPage = React.lazy(() => import("./pages/NotesPage"));
+const NotFoundPage = React.lazy(() => import("./pages/NotFoundPage"));
+const PortfolioHubPage = React.lazy(() => import("./pages/PortfolioHubPage"));
+const KnowledgeHubPage = React.lazy(() => import("./pages/KnowledgeHubPage"));
+const CommunityPage = React.lazy(() => import("./pages/CommunityPage"));
+const CodingWorkspacePage = React.lazy(() => import("./pages/CodingWorkspacePage"));
+const CareerCoachPage = React.lazy(() => import("./pages/CareerCoachPage"));
+const PluginsPage = React.lazy(() => import("./pages/PluginsPage"));
 
 import ErrorBoundary from "./components/Common/ErrorBoundary";
 

@@ -1,106 +1,130 @@
 /* =======================================================
-   AI ENGINEER OS — VERSION 2 GLOBAL DESIGN SYSTEM TOKENS
+   AI ENGINEER OS — GLOBAL DESIGN SYSTEM TOKENS (FROZEN SPEC)
    =======================================================
-   Design Principles: Minimal, Professional, Premium, Fast, High Contrast.
-   Typography: Inter, Geist, JetBrains Mono.
-   Palette: Near Black (#09090b), Indigo (#6366f1), Cyan (#06b6d4),
-   Emerald (#10b981), Amber (#f59e0b), Rose (#f43f5e).
-   Spacing: 8px Strict Grid System.
+   Design System Archetype: Linear, Cursor, Notion, Arc, Vercel, Resend
+   Single Source of Truth Specification
    ======================================================= */
 
 :root {
-  /* ─── Base Color Tokens ─── */
-  --v2-bg-canvas:          #09090b;
-  --v2-bg-sidebar:         #09090b;
-  --v2-bg-surface:         #121218;
-  --v2-bg-surface-hover:   #181824;
-  --v2-bg-elevated:        #1d1d28;
-  --v2-bg-overlay:         rgba(9, 9, 11, 0.82);
+  /* ─── 1. Color Token System (Obsidian Depth + Luminous Indigo) ─── */
+  --bg-app:                #050507; /* Deepest Space */
+  --bg-surface-0:          #09090D; /* Canvas Base */
+  --bg-surface-1:          #0E0E14; /* Elevated Panels & Cards */
+  --bg-surface-2:          #14141F; /* Floating Composers & Modals */
+  --bg-surface-3:          #1C1C2B; /* Hover States & Active Inset */
+  --bg-overlay:            rgba(5, 5, 7, 0.85);
 
-  /* ─── Brand & Status Accent Colors ─── */
-  --v2-primary:            #6366f1;
-  --v2-primary-hover:      #4f46e5;
-  --v2-primary-light:      rgba(99, 102, 241, 0.15);
-  
-  --v2-accent-cyan:        #06b6d4;
-  --v2-accent-cyan-light:  rgba(6, 182, 212, 0.15);
-  
-  --v2-success:            #10b981;
-  --v2-success-light:      rgba(16, 185, 129, 0.15);
-  
-  --v2-warning:            #f59e0b;
-  --v2-warning-light:      rgba(245, 158, 11, 0.15);
-  
-  --v2-danger:             #f43f5e;
-  --v2-danger-light:       rgba(244, 63, 94, 0.15);
+  /* Hairline Border Strategy */
+  --border-subtle:         rgba(255, 255, 255, 0.04);
+  --border-default:        rgba(255, 255, 255, 0.08);
+  --border-strong:         rgba(255, 255, 255, 0.16);
+  --border-focus:          rgba(99, 102, 241, 0.40);
 
-  /* ─── Typography & Contrast Tokens (AA Compliant) ─── */
-  --v2-font-sans:          'Inter', 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
-  --v2-font-mono:          'JetBrains Mono', monospace;
+  /* High Contrast Reading Hierarchy */
+  --text-primary:          #F8FAFC; /* Slate 50 (100% Opacity) */
+  --text-secondary:        #94A3B8; /* Slate 400 (60% Opacity) */
+  --text-muted:            #64748B; /* Slate 500 (40% Opacity) */
+  --text-disabled:         #475569; /* Slate 600 (25% Opacity) */
 
-  --v2-text-primary:       #f8fafc;
-  --v2-text-secondary:     #cbd5e1;
-  --v2-text-muted:         #94a3b8;
-  --v2-text-ghost:         #64748b;
+  /* Brand Accents & Semantic Status Tokens */
+  --accent-primary:        #6366F1; /* Luminous Indigo */
+  --accent-hover:          #4F46E5; /* Deep Indigo */
+  --accent-glow:           rgba(99, 102, 241, 0.15);
 
-  /* ─── Font Scale ─── */
-  --v2-type-xs:            11px;
-  --v2-type-sm:            12px;
-  --v2-type-base:          13px;
-  --v2-type-md:            15px;
-  --v2-type-lg:            18px;
-  --v2-type-xl:            22px;
-  --v2-type-2xl:           28px;
-  --v2-type-3xl:           34px;
+  --semantic-success:      #10B981; /* Emerald 500 */
+  --semantic-success-glow: rgba(16, 185, 129, 0.15);
+  --semantic-warning:      #F59E0B; /* Amber 500 */
+  --semantic-warning-glow: rgba(245, 158, 11, 0.15);
+  --semantic-danger:       #EF4444; /* Rose 500 */
+  --semantic-danger-glow:  rgba(239, 68, 68, 0.15);
+  --semantic-info:         #06B6D4; /* Cyan 500 */
+  --semantic-info-glow:    rgba(6, 182, 212, 0.15);
 
-  /* ─── 8px Spacing Grid ─── */
-  --v2-space-1:            4px;
-  --v2-space-2:            8px;
-  --v2-space-3:            12px;
-  --v2-space-4:            16px;
-  --v2-space-5:            20px;
-  --v2-space-6:            24px;
-  --v2-space-8:            32px;
-  --v2-space-10:           40px;
-  --v2-space-12:           48px;
-  --v2-space-16:           64px;
+  /* ─── 2. Typography System ─── */
+  --font-sans:             'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  --font-mono:             'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 
-  /* ─── Radius Tokens ─── */
-  --v2-radius-sm:          6px;
-  --v2-radius-md:          8px;
-  --v2-radius-lg:          12px;
-  --v2-radius-xl:          16px;
-  --v2-radius-full:        9999px;
+  --text-display:          32px;
+  --text-h1:               24px;
+  --text-h2:               18px;
+  --text-h3:               14px;
+  --text-body:             14px;
+  --text-body-sm:          13px;
+  --text-caption:          11px;
+  --text-code:             12px;
 
-  /* ─── Borders & Focus Rings ─── */
-  --v2-border-subtle:      rgba(255, 255, 255, 0.06);
-  --v2-border-default:     rgba(255, 255, 255, 0.1);
-  --v2-border-strong:      rgba(255, 255, 255, 0.18);
-  --v2-border-primary:     rgba(99, 102, 241, 0.4);
+  --tracking-hero:         -0.02em;
+  --tracking-title:        -0.015em;
+  --tracking-tight:        -0.01em;
+  --tracking-normal:       0em;
+  --tracking-wide:         +0.01em;
 
-  --v2-focus-ring:         0 0 0 2px rgba(99, 102, 241, 0.5);
-  --v2-shadow-sm:          0 2px 6px rgba(0, 0, 0, 0.4);
-  --v2-shadow-md:          0 6px 18px rgba(0, 0, 0, 0.5);
-  --v2-shadow-lg:          0 12px 32px rgba(0, 0, 0, 0.7);
+  --lh-tight:              1.15;
+  --lh-snug:               1.30;
+  --lh-body:               1.60;
+  --lh-code:               1.65;
 
-  /* ─── Standardized Cubic-Bezier Motion Timings ─── */
-  --v2-ease-out:           cubic-bezier(0.16, 1, 0.3, 1);
-  --v2-duration-hover:     150ms;
-  --v2-duration-normal:    200ms;
-  --v2-duration-modal:     250ms;
-  --v2-duration-drawer:    300ms;
+  /* ─── 3. 8px Spacing System Grid ─── */
+  --space-1:               4px;
+  --space-2:               8px;
+  --space-3:               12px;
+  --space-4:               16px;
+  --space-5:               20px;
+  --space-6:               24px;
+  --space-8:               32px;
+  --space-10:              40px;
+  --space-12:              48px;
+  --space-16:              64px;
+
+  /* Container Layout Tokens */
+  --container-canvas:      920px;
+  --container-composer:    768px;
+  --drawer-width:          320px;
+
+  /* ─── 4. Radius Scale ─── */
+  --radius-sm:             6px;
+  --radius-md:             10px;
+  --radius-lg:             16px;
+  --radius-full:           9999px;
+
+  /* ─── 5. Shadow & Glassmorphism System ─── */
+  --shadow-sm:             0 2px 6px rgba(0, 0, 0, 0.40);
+  --shadow-md:             0 6px 18px rgba(0, 0, 0, 0.50);
+  --shadow-lg:             0 12px 32px rgba(0, 0, 0, 0.70);
+  --shadow-modal:          0 25px 50px -12px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --focus-ring:            0 0 0 3px var(--accent-glow);
+
+  /* ─── 6. Motion Language Variables ─── */
+  --ease-out-expo:         cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-hover:        150ms;
+  --duration-normal:       200ms;
+  --duration-modal:        180ms;
+  --duration-drawer:       280ms;
+
+  /* ─── 7. Shared Component Tokens ─── */
+  --btn-height-sm:         28px;
+  --btn-height-md:         36px;
+  --btn-height-lg:         44px;
+
+  --input-bg:              var(--bg-surface-1);
+  --input-border:          var(--border-default);
+  --input-focus-border:    var(--accent-primary);
+
+  --card-bg:               var(--bg-surface-1);
+  --card-border:           var(--border-subtle);
+  --card-radius:           var(--radius-lg);
 }
 
-/* ─── Global Selection & Base Fills ─── */
+/* ─── Global Selection ─── */
 ::selection {
   background-color: rgba(99, 102, 241, 0.35);
   color: #ffffff;
 }
 
 body {
-  font-family: var(--v2-font-sans);
-  background-color: var(--v2-bg-canvas);
-  color: var(--v2-text-primary);
+  font-family: var(--font-sans);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
@@ -123,10 +147,10 @@ body {
   background: rgba(99, 102, 241, 0.5);
 }
 
-/* Standardized Glass Utility */
+/* Glass Utility */
 .v2-glass {
-  background: rgba(18, 18, 24, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--v2-border-subtle);
+  background: rgba(20, 20, 31, 0.90);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--border-default);
 }

@@ -56,4 +56,8 @@ export const eventBus = {
   },
 };
 
+// Aliases for event emitter interface compatibility
+eventBus.on = eventBus.subscribe;
+eventBus.emit = eventBus.publish;
+
 export default eventBus;

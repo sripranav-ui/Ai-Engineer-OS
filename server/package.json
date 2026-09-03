@@ -2,6 +2,7 @@
   "name": "ai-engineer-os-server",
   "version": "1.0.0",
   "description": "Production Enterprise Backend API & Realtime Platform for AI Engineer OS",
+  "type": "module",
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",

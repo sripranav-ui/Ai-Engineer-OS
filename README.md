@@ -72,21 +72,66 @@ Data operations are abstracted behind repositories to keep the view layer decoup
 
 ---
 
+## 🏛️ AI Engineer OS V1.5 System Architecture
+
+AI Engineer OS combines a modern React browser application with an optional **Native Node.js Local Runtime Daemon** for host development workflows:
+
+```text
+       ┌───────────────────────────────────────────────────────────┐
+       │                 Browser UI (React / Vite)                 │
+       └─────────────────────────────┬─────────────────────────────┘
+                                     │
+       ┌─────────────────────────────▼─────────────────────────────┐
+       │              AI Orchestrator & Autonomous Agent           │
+       └─────────────────────────────┬─────────────────────────────┘
+                                     │
+       ┌─────────────────────────────▼─────────────────────────────┐
+       │         Developer Tool Gateway (runtimeClient.js)          │
+       └─────────────────────────────┬─────────────────────────────┘
+                                     │
+       ┌─────────────────────────────▼─────────────────────────────┐
+       │       Permission / Security Layer (Workspace & Policy)    │
+       └─────────────────────────────┬─────────────────────────────┘
+                                     │ (HTTP / Token Auth)
+       ┌─────────────────────────────▼─────────────────────────────┐
+       │     Native Node.js Local Runtime Daemon (Port 7070)      │
+       └─────────────────────────────┬─────────────────────────────┘
+                                     │
+       ┌─────────────────────────────▼─────────────────────────────┐
+       │      Host OS (Filesystem, Terminal, Git, Node, NPM)        │
+       └───────────────────────────────────────────────────────────┘
+```
+
+### Core Architecture Layers:
+1. **Browser Layer**: React 18 + Vite frontend with glassmorphism UI tokens, multi-tab workspace, and interactive AI chat.
+2. **Agent Layer**: Autonomous 10-step execution pipeline (Understand → Scan → Plan → Context → Approval → Tool Exec → Validate → Diff → Checkpoint → Report).
+3. **Developer Tool Gateway**: Standardized client interface (`runtimeClient.js`) dispatching tool calls to local daemon or browser fallback.
+4. **Local Runtime Daemon**: Standalone Node.js daemon (`runtime/src/index.js`) running on `http://127.0.0.1:7070` for physical file operations, host terminal execution, Git integration, and test runners.
+5. **Security & Token Layer**: Canonical path sandboxing (`validateWorkspacePath`), command classification rules (`SAFE`, `APPROVAL_REQUIRED`, `BLOCKED`), localhost binding, token authentication, and secret redaction (`[REDACTED]`).
+6. **Browser Fallback Mode**: Graceful transition to in-browser execution when daemon is offline (`○ Browser Mode`).
+
+---
+
 ## 🛠️ Developer Setup & Commands
 
-Get the local development server running:
+Get the local development server and runtime daemon running:
 
-### Install dependencies
+### 1. Install dependencies
 ```bash
 npm install
 ```
 
-### Start hot-reload dev server
+### 2. Start Local Runtime Daemon (Optional for Host OS execution)
+```bash
+node runtime/src/index.js
+```
+
+### 3. Start hot-reload dev server
 ```bash
 npm run dev
 ```
 
-### Build optimized production bundle
+### 4. Build optimized production bundle
 ```bash
 npm run build
 ```

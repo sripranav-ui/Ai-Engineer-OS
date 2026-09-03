@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import conversationMemory from "../../services/ai/memory/conversationMemory.js";
 import providerManager from "../../services/ai/providers/providerManager.js";
-import contextBuilderService from "../../services/ai/memory/contextBuilderService.js";
+import memoryContextBuilder from "../../services/ai/memory/contextBuilderService.js";
+import ragContextBuilder from "../../services/ai/rag/contextBuilder.js";
 import { ragEngine } from "../../services/ai/rag/ragEngine.js";
 import eventBus from "../../services/plugins/eventBus.js";
+import aiOrchestrator from "../../services/ai/orchestrator/aiOrchestrator.js";
 import {
   Sparkles,
   MessageSquare,
@@ -15,6 +17,7 @@ import {
   Code,
   Check,
   ChevronDown,
+  ChevronUp,
   Cpu,
   Database,
   Sliders,
@@ -22,20 +25,25 @@ import {
   Zap,
   Terminal,
   FileText,
-  CornerDownLeft,
   Layers,
   FileCode,
-  Command,
+  Play,
+  ExternalLink,
+  Folder,
+  Clock,
+  Activity,
 } from "lucide-react";
+import AutonomousTaskWorkflow from "../Agent/AutonomousTaskWorkflow.jsx";
 
 // =======================================================
-// AIChatWindow.jsx — Sprint 2 Flagship AI Assistant Experience
-// Inspired by ChatGPT Desktop, Claude Desktop, Cursor Chat & Tines
+// AIChatWindow.jsx — Phase 2 AI Assistant Experience
+// Inspired by Claude Desktop, ChatGPT Desktop, Legora & Tines
+// Single Source of Truth Implementation
 // =======================================================
 
 const AVAILABLE_MODELS = [
-  { id: "gpt-4o", name: "GPT-4o (Omni)", provider: "openai", badge: "Fast & Smart" },
   { id: "claude-3-5-sonnet", name: "Claude 3.5 Sonnet", provider: "anthropic", badge: "Best for Code" },
+  { id: "gpt-4o", name: "GPT-4o (Omni)", provider: "openai", badge: "Fast & Smart" },
   { id: "gemini-1-5-pro", name: "Gemini 1.5 Pro", provider: "google", badge: "1M Context" },
   { id: "deepseek-r1", name: "DeepSeek R1", provider: "deepseek", badge: "Reasoning" },
 ];
@@ -60,9 +68,13 @@ export function AIChatWindow() {
   const [copiedCodeId, setCopiedCodeId] = useState(null);
   const [selectedModelId, setSelectedModelId] = useState("claude-3-5-sonnet");
   const [showModelDropdown, setShowModelDropdown] = useState(false);
-  const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [showThreadSidebar, setShowThreadSidebar] = useState(true);
+  const [collapsedCodeBlocks, setCollapsedCodeBlocks] = useState({});
+  const [runningCodeId, setRunningCodeId] = useState(null);
+  const [expandedRagMsgId, setExpandedRagMsgId] = useState(null);
+  const [agentMode, setAgentMode] = useState(false);
+  const [showAutonomousWorkflow, setShowAutonomousWorkflow] = useState(false);
 
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
@@ -98,20 +110,11 @@ export function AIChatWindow() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isGenerating]);
 
-  // Slash menu filter trigger
-  useEffect(() => {
-    if (inputPrompt.startsWith("/")) {
-      setShowSlashMenu(true);
-    } else {
-      setShowSlashMenu(false);
-    }
-  }, [inputPrompt]);
-
   // --- Action Handlers ---
   const handleNewChat = () => {
     const activeProvider = providerManager.getActiveProvider();
     const conv = conversationMemory.createConversation(
-      "New AI Session",
+      "New Session",
       selectedModelId || activeProvider?.selectedModel || "claude-3-5-sonnet",
       activeProvider?.name || "anthropic"
     );
@@ -151,10 +154,52 @@ export function AIChatWindow() {
     setTimeout(() => setCopiedCodeId(null), 2000);
   };
 
-  const handleInsertInStudio = (codeText) => {
-    localStorage.setItem("pending_studio_code", codeText);
-    eventBus.emit("INSERT_CODE_STUDIO", { code: codeText });
-    window.location.href = "/coding-workspace";
+  const [insertedToastId, setInsertedToastId] = useState(null);
+
+  const handleInsertInStudio = (codeText, lang = "python", filename = "") => {
+    if (!codeText) return;
+    const payload = {
+      id: `code_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      code: codeText,
+      language: lang || "python",
+      filename: filename || `generated_${Date.now().toString().slice(-4)}.py`,
+      timestamp: new Date().toISOString(),
+      conversationId: activeConvId || "default",
+    };
+
+    let queue = [];
+    try {
+      const raw = localStorage.getItem("pending_studio_queue");
+      queue = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(queue)) queue = [];
+    } catch {
+      queue = [];
+    }
+
+    // Prevent duplicate insertion into queue
+    if (!queue.some((item) => item.code === codeText)) {
+      queue.push(payload);
+      localStorage.setItem("pending_studio_queue", JSON.stringify(queue));
+      localStorage.setItem("pending_studio_code", codeText);
+    }
+
+    // Publish event via eventBus
+    eventBus.emit("INSERT_CODE_STUDIO", payload);
+
+    setInsertedToastId(payload.id);
+    setTimeout(() => setInsertedToastId(null), 2500);
+  };
+
+  const handleRunCode = (codeText, id) => {
+    setRunningCodeId(id);
+    setTimeout(() => {
+      setRunningCodeId(null);
+      alert(`[Studio Runtime] Execution output:\n${codeText.slice(0, 120)}...`);
+    }, 1200);
+  };
+
+  const toggleCollapseBlock = (id) => {
+    setCollapsedCodeBlocks((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleFileUpload = (e) => {
@@ -173,7 +218,6 @@ export function AIChatWindow() {
 
   const selectSlashCommand = (cmd) => {
     setInputPrompt(`${cmd} `);
-    setShowSlashMenu(false);
     textareaRef.current?.focus();
   };
 
@@ -184,7 +228,6 @@ export function AIChatWindow() {
 
     const text = inputPrompt.trim();
     setInputPrompt("");
-    setShowSlashMenu(false);
 
     const userMsg = {
       id: `msg_${Date.now()}`,
@@ -201,72 +244,59 @@ export function AIChatWindow() {
 
     setIsGenerating(true);
     abortControllerRef.current = new AbortController();
-
     const assistantMsgId = `msg_${Date.now() + 1}`;
-    const activeModelObj = AVAILABLE_MODELS.find((m) => m.id === selectedModelId) || AVAILABLE_MODELS[1];
+    const activeModelObj = AVAILABLE_MODELS.find((m) => m.id === selectedModelId) || AVAILABLE_MODELS[0];
 
     const placeholderMsg = {
       id: assistantMsgId,
       sender: "assistant",
       text: "",
-      thoughtProcess: `Synthesizing solution via ${activeModelObj.name}...`,
+      thoughtProcess: `Orchestrating request via AI Orchestrator Layer (${activeModelObj.name})...`,
       timestamp: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, placeholderMsg]);
 
     try {
-      let systemPromptText = contextBuilderService.formatSystemPromptContext(activeConvId);
-      if (useRag) {
-        const ragRes = ragEngine.retrieveContext(text);
-        if (ragRes && ragRes.formattedContext) {
-          systemPromptText += `\n\n=== RELEVANT LOCAL KNOWLEDGE BASE DOCUMENTS ===\n${ragRes.formattedContext}\n===============================================`;
-        }
-      }
-
-      const historyForPayload = updatedMsgs.map((m) => ({
-        role: m.sender === "user" ? "user" : "assistant",
-        content: m.text,
-      }));
-
-      const activeProvider = providerManager.getActiveProvider();
       let accumulatedResponse = "";
-
-      if (activeProvider && activeProvider.streamChat) {
-        await activeProvider.streamChat({
-          messages: [{ role: "system", content: systemPromptText }, ...historyForPayload],
-          model: selectedModelId,
-          signal: abortControllerRef.current.signal,
-          onChunk: (chunkText) => {
-            accumulatedResponse += chunkText;
-            setMessages((prevMsgs) =>
-              prevMsgs.map((m) => (m.id === assistantMsgId ? { ...m, text: accumulatedResponse } : m))
-            );
-          },
-        });
-      } else {
-        // High quality simulated stream
-        let simulatedText = "";
-        if (text.startsWith("/code")) {
-          simulatedText = `Here is the zero-allocation implementation for your request:\n\n\`\`\`python\nimport numpy as np\n\nclass VectorSearchPipeline:\n    def __init__(self, vector_dim: int = 1536):\n        self.vector_dim = vector_dim\n        self.index = np.empty((0, vector_dim), dtype=np.float32)\n\n    def search(self, query_vec: np.ndarray, top_k: int = 5):\n        norms = np.linalg.norm(self.index, axis=1) * np.linalg.norm(query_vec)\n        scores = np.dot(self.index, query_vec) / np.maximum(norms, 1e-9)\n        return np.argsort(scores)[::-1][:top_k]\n\`\`\`\n\nThis pipeline performs fast, zero-allocation similarity ranking.`;
-        } else {
-          simulatedText = `I have analyzed your prompt against the active **${activeModelObj.name}** engine and workspace context.\n\nHere is the synthesized response:\n\n\`\`\`typescript\ninterface RAGQueryResult {\n  documentId: string;\n  similarityScore: number;\n  snippet: string;\n}\n\nexport async function retrieveContext(query: string): Promise<RAGQueryResult[]> {\n  const vector = await embedQuery(query);\n  return vectorStore.queryNearest(vector, 5);\n}\n\`\`\`\n\nThe query executed across local vector embeddings with RAG active.`;
-        }
-
-        for (let i = 0; i < simulatedText.length; i += 4) {
-          if (abortControllerRef.current?.signal.aborted) break;
-          await new Promise((r) => setTimeout(r, 12));
-          accumulatedResponse += simulatedText.slice(i, i + 4);
+      const orchestratorResult = await aiOrchestrator.processRequest(
+        {
+          promptText: text,
+          conversationId: activeConvId,
+          modelId: selectedModelId,
+          useRag,
+          agentMode,
+          attachments: attachedFiles,
+        },
+        (chunkText) => {
+          accumulatedResponse += chunkText;
           setMessages((prevMsgs) =>
             prevMsgs.map((m) => (m.id === assistantMsgId ? { ...m, text: accumulatedResponse } : m))
           );
-        }
-      }
+        },
+        abortControllerRef.current?.signal
+      );
+
+      const finalContent = orchestratorResult.text || accumulatedResponse;
+
+      setMessages((prevMsgs) =>
+        prevMsgs.map((m) =>
+          m.id === assistantMsgId
+            ? {
+                ...m,
+                text: finalContent,
+                ragSources: orchestratorResult.ragSources || [],
+                hasKnowledge: orchestratorResult.hasKnowledge,
+                plan: orchestratorResult.plan,
+              }
+            : m
+        )
+      );
 
       const finalAssistantMsg = {
         id: assistantMsgId,
         sender: "assistant",
-        text: accumulatedResponse,
+        text: finalContent,
         timestamp: new Date().toISOString(),
       };
 
@@ -287,30 +317,30 @@ export function AIChatWindow() {
   };
 
   const selectedModelObj = useMemo(
-    () => AVAILABLE_MODELS.find((m) => m.id === selectedModelId) || AVAILABLE_MODELS[1],
+    () => AVAILABLE_MODELS.find((m) => m.id === selectedModelId) || AVAILABLE_MODELS[0],
     [selectedModelId]
   );
 
   return (
-    <div className="h-full w-full bg-[#07070a] text-slate-100 flex overflow-hidden font-sans select-none relative">
+    <div className="h-full w-full bg-[#050507] text-[#F8FAFC] flex overflow-hidden font-sans select-none relative">
       {/* ---------------------------------------------------- */}
-      {/* 1. Left Conversation Threads Sidebar (Receded, Clean) */}
+      {/* 1. Left Conversation Rail (Receded & Quiet)         */}
       {/* ---------------------------------------------------- */}
       {showThreadSidebar && (
-        <div className="w-64 bg-[#0a0a0f] border-r border-white/[0.05] flex flex-col h-full shrink-0 transition-all">
-          <div className="p-3 border-b border-white/[0.05] flex items-center justify-between">
+        <div className="w-60 bg-[#09090D] border-r border-white/[0.04] flex flex-col h-full shrink-0 transition-all z-10">
+          <div className="p-3 border-b border-white/[0.04]">
             <button
               onClick={handleNewChat}
-              className="flex-1 py-2 px-3 rounded-xl bg-indigo-600/90 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-md"
+              className="w-full py-2 px-3 rounded-xl bg-[#6366F1] hover:bg-[#4F46E5] text-white text-xs font-medium flex items-center justify-center gap-2 transition-all shadow-sm"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               <span>New Conversation</span>
             </button>
           </div>
 
           <div className="flex-1 p-2 space-y-1 overflow-y-auto v2-scrollbar">
             <div className="text-[10px] font-mono text-slate-500 uppercase tracking-wider px-2 py-1 flex items-center justify-between">
-              <span>Recent Threads</span>
+              <span>Recent Sessions</span>
               <span className="text-slate-600">{conversations.length}</span>
             </div>
             {conversations.map((conv) => {
@@ -319,20 +349,21 @@ export function AIChatWindow() {
                 <div
                   key={conv.id}
                   onClick={() => setActiveConvId(conv.id)}
-                  className={`group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer transition-all ${
+                  className={`group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer transition-all ${
                     isActive
-                      ? "bg-indigo-600/15 text-white font-medium border border-indigo-500/30"
+                      ? "bg-[#6366F1]/15 text-white font-medium border border-[#6366F1]/30"
                       : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]"
                   }`}
                 >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-indigo-400" : "text-slate-500"}`} />
+                  <div className="flex items-center gap-2 truncate">
+                    <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-[#6366F1]" : "text-slate-500"}`} />
                     <span className="truncate">{conv.title || "Untitled Session"}</span>
                   </div>
                   <button
                     onClick={(e) => handleDeleteChat(conv.id, e)}
                     className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-rose-400 transition-opacity p-1"
                     title="Delete thread"
+                    aria-label="Delete thread"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -344,24 +375,25 @@ export function AIChatWindow() {
       )}
 
       {/* ---------------------------------------------------- */}
-      {/* 2. Main Conversation Canvas (Centered, Frameless)    */}
+      {/* 2. Main Conversation Canvas (Centered max-w 920px)   */}
       {/* ---------------------------------------------------- */}
-      <div className="flex-1 flex flex-col h-full bg-[#07070a] relative overflow-hidden">
+      <div className="flex-1 flex flex-col h-full bg-[#050507] relative overflow-hidden">
         {/* Minimal Header */}
-        <div className="h-12 px-6 border-b border-white/[0.05] flex items-center justify-between shrink-0 bg-[#09090e]">
+        <div className="h-11 px-6 border-b border-white/[0.04] flex items-center justify-between shrink-0 bg-[#09090D]">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowThreadSidebar(!showThreadSidebar)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.05] transition-all"
-              title="Toggle Threads Sidebar"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.04] transition-all"
+              title="Toggle Sidebar"
+              aria-label="Toggle Sidebar"
             >
               <Layers className="w-4 h-4" />
             </button>
 
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-indigo-400" />
+              <Sparkles className="w-4 h-4 text-[#6366F1]" />
               <span className="text-xs font-semibold text-white tracking-tight">AI Assistant</span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.05] text-slate-400 border border-white/[0.06]">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.04] text-slate-400 border border-white/[0.06]">
                 {selectedModelObj.name}
               </span>
             </div>
@@ -372,7 +404,7 @@ export function AIChatWindow() {
               onClick={() => setUseRag(!useRag)}
               className={`px-3 py-1 rounded-full text-[11px] font-mono transition-all flex items-center gap-1.5 border ${
                 useRag
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                  ? "bg-[#10B981]/10 border-[#10B981]/30 text-[#10B981]"
                   : "bg-white/[0.04] border-white/10 text-slate-500"
               }`}
               title="Toggle Vector RAG Context Retrieval"
@@ -382,10 +414,23 @@ export function AIChatWindow() {
             </button>
 
             <button
+              onClick={() => setAgentMode(!agentMode)}
+              className={`px-3 py-1 rounded-full text-[11px] font-mono transition-all flex items-center gap-1.5 border ${
+                agentMode
+                  ? "bg-[#F59E0B]/10 border-[#F59E0B]/30 text-[#F59E0B]"
+                  : "bg-white/[0.04] border-white/10 text-slate-500"
+              }`}
+              title="Toggle Agent Mode for autonomous engineering execution"
+            >
+              <Zap className="w-3 h-3" />
+              <span>Agent: {agentMode ? "ON" : "OFF"}</span>
+            </button>
+
+            <button
               onClick={() => setShowContextDrawer(!showContextDrawer)}
               className={`px-3 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 border ${
                 showContextDrawer
-                  ? "bg-indigo-600/20 border-indigo-500/40 text-indigo-300"
+                  ? "bg-[#6366F1]/20 border-[#6366F1]/40 text-[#6366F1]"
                   : "bg-white/[0.04] border-white/10 text-slate-400 hover:text-white"
               }`}
             >
@@ -395,8 +440,8 @@ export function AIChatWindow() {
           </div>
         </div>
 
-        {/* Conversation Thread Canvas (Max-width 900-1000px centered) */}
-        <div className="flex-1 overflow-y-auto p-6 v2-scrollbar space-y-8 max-w-4xl mx-auto w-full pt-8 pb-36">
+        {/* Conversation Reading Viewport (Max-width 920px centered) */}
+        <div className="flex-1 overflow-y-auto p-6 v2-scrollbar space-y-8 max-w-[920px] mx-auto w-full pt-8 pb-36">
           {messages.length > 0 ? (
             messages.map((msg) => {
               if (!msg) return null;
@@ -404,19 +449,19 @@ export function AIChatWindow() {
               const isUser = msg.sender === "user";
 
               return (
-                <div key={msg.id || Math.random()} className="space-y-2 group">
-                  {/* Message Author Meta Header */}
-                  <div className="flex items-center gap-2.5">
+                <div key={msg.id || Math.random()} className="space-y-2">
+                  {/* Lightweight Message Meta Header */}
+                  <div className="flex items-center gap-2">
                     <div
-                      className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold ${
+                      className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold ${
                         isUser
-                          ? "bg-indigo-600 text-white"
-                          : "bg-gradient-to-br from-indigo-500 via-purple-600 to-emerald-500 text-white shadow-md shadow-indigo-500/20"
+                          ? "bg-slate-800 text-slate-300"
+                          : "bg-[#6366F1]/20 text-[#6366F1] border border-[#6366F1]/30"
                       }`}
                     >
-                      {isUser ? "U" : <Sparkles className="w-3.5 h-3.5" />}
+                      {isUser ? "U" : <Sparkles className="w-3 h-3" />}
                     </div>
-                    <span className="text-xs font-semibold text-slate-200">
+                    <span className="text-xs font-medium text-slate-300">
                       {isUser ? "You" : `Assistant (${selectedModelObj.name})`}
                     </span>
                     <span className="text-[10px] font-mono text-slate-600">
@@ -426,17 +471,17 @@ export function AIChatWindow() {
 
                   {/* Thought Process Badge */}
                   {msg.thoughtProcess && (
-                    <div className="ml-8 text-[11px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-xl inline-flex items-center gap-2">
-                      <Zap className="w-3 h-3 text-indigo-400 animate-pulse" />
+                    <div className="ml-7 text-[11px] font-mono text-[#6366F1] bg-[#6366F1]/10 border border-[#6366F1]/20 px-3 py-1 rounded-lg inline-flex items-center gap-2">
+                      <Zap className="w-3 h-3 text-[#6366F1] animate-pulse" />
                       <span>{msg.thoughtProcess}</span>
                     </div>
                   )}
 
-                  {/* Attached Files Chips in User Message */}
+                  {/* Attached Files Chips */}
                   {msg.attachments && msg.attachments.length > 0 && (
-                    <div className="ml-8 flex flex-wrap gap-2 pt-1">
+                    <div className="ml-7 flex flex-wrap gap-2 pt-1">
                       {msg.attachments.map((att, i) => (
-                        <div key={i} className="px-2.5 py-1 rounded-lg bg-white/[0.05] border border-white/10 text-[11px] font-mono text-indigo-300 flex items-center gap-1.5">
+                        <div key={i} className="px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/10 text-[11px] font-mono text-indigo-300 flex items-center gap-1.5">
                           <FileCode className="w-3 h-3" />
                           <span>{att.name}</span>
                           <span className="text-slate-500">({att.size})</span>
@@ -445,55 +490,77 @@ export function AIChatWindow() {
                     </div>
                   )}
 
-                  {/* Frameless Message Content */}
-                  <div className="ml-8 text-sm text-slate-200 leading-relaxed font-sans space-y-3">
+                  {/* Document-Style Message Content (No chat bubble cards) */}
+                  <div className="ml-7 text-sm text-slate-200 leading-relaxed font-sans space-y-3">
                     {msgText.includes("```") ? (
                       msgText.split("```").map((part, idx) => {
                         if (idx % 2 === 1) {
                           const lines = part.trim().split("\n");
                           const lang = lines[0] || "code";
                           const codeText = lines.slice(1).join("\n") || part;
+                          const blockId = `${msg.id}_block_${idx}`;
+                          const isCollapsed = collapsedCodeBlocks[blockId];
 
                           return (
                             <div
                               key={idx}
-                              className="my-4 rounded-xl bg-[#09090e] border border-white/10 overflow-hidden font-mono text-xs shadow-xl"
+                              className="my-4 rounded-xl bg-[#09090E] border border-white/10 overflow-hidden font-mono text-xs shadow-lg"
                             >
-                              {/* Cursor-Grade Code Block Header */}
-                              <div className="flex items-center justify-between px-4 py-2 bg-[#0d0d14] border-b border-white/10 text-slate-400">
+                              {/* Premium Cursor/Raycast-Grade Code Header */}
+                              <div className="flex items-center justify-between px-4 py-2 bg-[#0E0E14] border-b border-white/10 text-slate-400">
                                 <div className="flex items-center gap-2">
-                                  <Terminal className="w-3.5 h-3.5 text-indigo-400" />
+                                  <Terminal className="w-3.5 h-3.5 text-[#6366F1]" />
                                   <span className="text-xs font-mono font-medium text-slate-300">{lang}</span>
                                 </div>
 
                                 <div className="flex items-center gap-3 text-xs">
                                   <button
-                                    onClick={() => handleInsertInStudio(codeText)}
-                                    className="hover:text-white flex items-center gap-1 text-slate-400 transition-colors"
-                                    title="Open code in Sacred Studio Editor"
+                                    onClick={() => handleRunCode(codeText, blockId)}
+                                    className="hover:text-emerald-400 flex items-center gap-1 text-slate-400 transition-colors"
+                                    title="Run in Studio Runtime"
                                   >
-                                    <Code className="w-3.5 h-3.5 text-cyan-400" />
-                                    <span>Insert in Studio</span>
+                                    <Play className="w-3 h-3 text-emerald-400" />
+                                    <span>{runningCodeId === blockId ? "Running..." : "Run"}</span>
                                   </button>
+
                                   <button
-                                    onClick={() => handleCopyCode(codeText, `${msg.id}_${idx}`)}
+                                    onClick={() => handleInsertInStudio(codeText, lang)}
+                                    className="hover:text-white flex items-center gap-1 text-slate-400 transition-colors"
+                                    title="Insert code into Sacred Studio Editor"
+                                  >
+                                    <Code className="w-3 h-3 text-cyan-400" />
+                                    <span>{insertedToastId ? "✓ Inserted" : "Insert in Studio"}</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleCopyCode(codeText, blockId)}
                                     className="hover:text-white flex items-center gap-1 text-slate-400 transition-colors"
                                   >
-                                    {copiedCodeId === `${msg.id}_${idx}` ? (
+                                    {copiedCodeId === blockId ? (
                                       <>
-                                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                        <Check className="w-3 h-3 text-emerald-400" />
                                         <span className="text-emerald-400 font-medium">Copied</span>
                                       </>
                                     ) : (
                                       <span>Copy</span>
                                     )}
                                   </button>
+
+                                  <button
+                                    onClick={() => toggleCollapseBlock(blockId)}
+                                    className="hover:text-white text-slate-500 p-0.5"
+                                    title={isCollapsed ? "Expand Code" : "Collapse Code"}
+                                  >
+                                    {isCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+                                  </button>
                                 </div>
                               </div>
 
-                              <pre className="p-4 text-slate-200 overflow-x-auto v2-scrollbar leading-relaxed">
-                                <code>{codeText}</code>
-                              </pre>
+                              {!isCollapsed && (
+                                <pre className="p-4 text-slate-200 overflow-x-auto v2-scrollbar leading-relaxed">
+                                  <code>{codeText}</code>
+                                </pre>
+                              )}
                             </div>
                           );
                         }
@@ -503,24 +570,108 @@ export function AIChatWindow() {
                       <div className="whitespace-pre-wrap">{msgText || "Synthesizing response..."}</div>
                     )}
                   </div>
+
+                  {/* Phase 4.4 — RAG Source Attribution & Retrieved Context Viewer */}
+                  {msg.sender === "assistant" && msg.ragSources && msg.ragSources.length > 0 && (
+                    <div className="mt-3 p-3.5 rounded-xl bg-[#09090E] border border-[#6366F1]/30 font-mono text-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-indigo-300 font-bold">
+                          <Database className="w-3.5 h-3.5 text-[#6366F1]" />
+                          <span>Sources Used ({msg.ragSources.length} Vector Chunks)</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedRagMsgId(expandedRagMsgId === msg.id ? null : msg.id)}
+                          className="text-[11px] text-[#6366F1] hover:underline flex items-center gap-1"
+                        >
+                          <span>{expandedRagMsgId === msg.id ? "Hide Context" : "Retrieved Context"}</span>
+                          {expandedRagMsgId === msg.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                        </button>
+                      </div>
+
+                      {/* Source Badges */}
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {msg.ragSources.map((src, i) => (
+                          <a
+                            key={i}
+                            href="/knowledge"
+                            className="px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 text-[11px] border border-white/10 flex items-center gap-1.5 transition-all"
+                            title={`View source ${src.docTitle}`}
+                          >
+                            <FileText className="w-3 h-3 text-[#6366F1]" />
+                            <span className="truncate max-w-[140px] font-semibold">{src.docTitle}</span>
+                            <span className="text-[10px] text-emerald-400 font-bold">({src.scorePercentage})</span>
+                          </a>
+                        ))}
+                      </div>
+
+                      {/* Collapsible Retrieved Context Drawer */}
+                      {expandedRagMsgId === msg.id && (
+                        <div className="pt-2 space-y-2 border-t border-white/[0.06] max-h-60 overflow-y-auto v2-scrollbar">
+                          {msg.ragSources.map((src, idx) => (
+                            <div key={idx} className="p-2.5 rounded-lg bg-[#050508] border border-white/5 text-[11px] space-y-1">
+                              <div className="flex items-center justify-between text-indigo-300 font-semibold">
+                                <span>{src.docTitle} (Page {src.pageNumber})</span>
+                                <span className="text-emerald-400">{src.scorePercentage} Match</span>
+                              </div>
+                              <div className="text-slate-300 leading-relaxed font-sans text-xs whitespace-pre-wrap">
+                                "{src.text}"
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Missing Knowledge Notice */}
+                  {msg.sender === "assistant" && msg.hasKnowledge === false && (
+                    <div className="mt-2 text-[11px] font-mono text-slate-500 bg-white/[0.02] px-3 py-1.5 rounded-lg border border-white/[0.04] flex items-center gap-2">
+                      <span>⚠️ No relevant knowledge found in local vector store. Continuing with general intelligence.</span>
+                    </div>
+                  )}
+
+                  {/* Phase 6 — Agent Mode Execution Plan Badge */}
+                  {msg.sender === "assistant" && msg.plan && (
+                    <div className="mt-2 p-3 rounded-xl bg-[#09090E] border border-[#F59E0B]/20 font-mono text-[11px] space-y-1.5">
+                      <div className="flex items-center gap-2 text-[#F59E0B] font-bold">
+                        <Zap className="w-3.5 h-3.5" />
+                        <span>Agent Execution Plan</span>
+                        <span className="text-[10px] text-slate-500 font-normal">({msg.plan.intent} • {Math.round((msg.plan.confidence || 0) * 100)}% confidence)</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(msg.plan.executionOrder || []).map((step, i) => (
+                          <span key={i} className="px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-slate-400 text-[10px]">
+                            {i + 1}. {step}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex gap-3 text-[10px] text-slate-500">
+                        {msg.plan.useMemory && <span className="text-emerald-400">✓ Memory</span>}
+                        {msg.plan.useKnowledge && <span className="text-emerald-400">✓ Knowledge</span>}
+                        {msg.plan.useStudio && <span className="text-emerald-400">✓ Studio</span>}
+                        {msg.plan.useTools?.length > 0 && <span className="text-cyan-400">Tools: {msg.plan.useTools.join(", ")}</span>}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })
           ) : (
-            /* Calm Empty State (ChatGPT / Claude Desktop Style) */
+            /* Large Centered Welcome Empty State */
             <div className="flex flex-col items-center justify-center h-full text-center space-y-6 pt-16">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500/20 via-purple-500/10 to-emerald-500/20 border border-white/10 flex items-center justify-center text-indigo-400 shadow-2xl">
+              <div className="w-16 h-16 rounded-2xl bg-[#6366F1]/15 border border-[#6366F1]/30 flex items-center justify-center text-[#6366F1] shadow-2xl">
                 <Sparkles className="w-8 h-8" />
               </div>
 
               <div className="space-y-2">
-                <h1 className="text-2xl font-bold text-white tracking-tight">AI Engineer Operating System</h1>
-                <p className="text-xs text-slate-400 max-w-md leading-relaxed">
-                  Synthesize zero-allocation algorithms, inspect vector RAG documents, or debug python scripts.
+                <h1 className="text-2xl font-bold text-white tracking-tight">AI Engineer OS</h1>
+                <p className="text-sm text-slate-400 max-w-md leading-relaxed">
+                  How can I help you build today?
                 </p>
               </div>
 
-              {/* Quick Suggestion Chips */}
+              {/* Suggested Prompts Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-lg w-full pt-4">
                 {[
                   { text: "Synthesize vector similarity search pipeline", cmd: "/code" },
@@ -534,9 +685,9 @@ export function AIChatWindow() {
                       setInputPrompt(`${chip.cmd} ${chip.text}`);
                       textareaRef.current?.focus();
                     }}
-                    className="p-3 rounded-xl bg-[#0d0d14] border border-white/[0.06] hover:border-indigo-500/40 text-left text-xs cursor-pointer hover:bg-white/[0.02] transition-all group"
+                    className="p-3.5 rounded-xl bg-[#0E0E14] border border-white/[0.06] hover:border-[#6366F1]/40 text-left text-xs cursor-pointer hover:bg-white/[0.02] transition-all group"
                   >
-                    <div className="font-mono text-[10px] text-indigo-400 group-hover:text-indigo-300">{chip.cmd}</div>
+                    <div className="font-mono text-[10px] text-[#6366F1] group-hover:text-indigo-300">{chip.cmd}</div>
                     <div className="text-slate-300 mt-1 font-medium">{chip.text}</div>
                   </div>
                 ))}
@@ -547,48 +698,48 @@ export function AIChatWindow() {
         </div>
 
         {/* ---------------------------------------------------- */}
-        {/* 3. Floating Elevated Composer Pill                    */}
+        {/* 3. Signature Floating Elevated Composer Pill        */}
         {/* ---------------------------------------------------- */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 max-w-3xl w-full px-4 z-30">
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 max-w-[768px] w-full px-4 z-30">
           {/* Slash Commands Helper Popup */}
-          {showSlashMenu && (
-            <div className="mb-2 p-2 rounded-2xl bg-[#0e0e16]/95 backdrop-blur-xl border border-white/10 shadow-2xl space-y-1">
+          {inputPrompt === "/" && (
+            <div className="mb-2 p-2 rounded-2xl bg-[#0E0E14]/95 backdrop-blur-xl border border-white/10 shadow-2xl space-y-1">
               <div className="text-[10px] font-mono text-slate-500 uppercase px-2 py-1">Slash Commands</div>
               {SLASH_COMMANDS.map((item) => (
                 <div
                   key={item.cmd}
                   onClick={() => selectSlashCommand(item.cmd)}
-                  className="px-3 py-1.5 rounded-xl text-xs cursor-pointer hover:bg-indigo-600/20 text-slate-300 hover:text-white flex items-center justify-between transition-all"
+                  className="px-3 py-1.5 rounded-xl text-xs cursor-pointer hover:bg-[#6366F1]/20 text-slate-300 hover:text-white flex items-center justify-between transition-all"
                 >
-                  <span className="font-mono font-semibold text-indigo-400">{item.cmd}</span>
+                  <span className="font-mono font-semibold text-[#6366F1]">{item.cmd}</span>
                   <span className="text-slate-400 text-[11px]">{item.desc}</span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Composer Card */}
+          {/* Composer Card Surface */}
           <form
             onSubmit={handleSendMessage}
-            className="p-3 rounded-2xl bg-[#0e0e16]/90 backdrop-blur-2xl border border-white/10 shadow-2xl space-y-2 focus-within:border-indigo-500/50 transition-all"
+            className="p-3 rounded-2xl bg-[#0E0E14]/90 backdrop-blur-2xl border border-white/10 shadow-2xl space-y-2.5 focus-within:border-[#6366F1]/50 transition-all"
           >
-            {/* Top Toolbar Row inside Composer */}
+            {/* Top Row Controls inside Floating Composer */}
             <div className="flex items-center justify-between text-xs px-1 border-b border-white/[0.04] pb-2">
               <div className="flex items-center gap-2">
-                {/* Model Selector Dropdown Trigger */}
+                {/* Model Selector Dropdown */}
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setShowModelDropdown(!showModelDropdown)}
-                    className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 text-slate-200 text-[11px] font-medium flex items-center gap-1.5 transition-all"
+                    className="px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-slate-200 text-[11px] font-medium flex items-center gap-1.5 transition-all"
                   >
-                    <Cpu className="w-3.5 h-3.5 text-indigo-400" />
+                    <Cpu className="w-3.5 h-3.5 text-[#6366F1]" />
                     <span>{selectedModelObj.name}</span>
                     <ChevronDown className="w-3 h-3 text-slate-400" />
                   </button>
 
                   {showModelDropdown && (
-                    <div className="absolute bottom-8 left-0 w-56 p-1.5 rounded-xl bg-[#0f0f18] border border-white/10 shadow-2xl z-50 space-y-1">
+                    <div className="absolute bottom-8 left-0 w-56 p-1.5 rounded-xl bg-[#0F0F18] border border-white/10 shadow-2xl z-50 space-y-1">
                       {AVAILABLE_MODELS.map((m) => (
                         <div
                           key={m.id}
@@ -598,7 +749,7 @@ export function AIChatWindow() {
                           }}
                           className={`p-2 rounded-lg text-xs cursor-pointer flex items-center justify-between transition-all ${
                             selectedModelId === m.id
-                              ? "bg-indigo-600/20 text-white font-semibold"
+                              ? "bg-[#6366F1]/20 text-white font-semibold"
                               : "text-slate-400 hover:text-white hover:bg-white/[0.04]"
                           }`}
                         >
@@ -606,26 +757,26 @@ export function AIChatWindow() {
                             <div>{m.name}</div>
                             <div className="text-[10px] text-slate-500 font-mono">{m.badge}</div>
                           </div>
-                          {selectedModelId === m.id && <Check className="w-3.5 h-3.5 text-indigo-400" />}
+                          {selectedModelId === m.id && <Check className="w-3.5 h-3.5 text-[#6366F1]" />}
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
 
-                {/* Attach File Button */}
+                {/* Attachment Button */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   className="px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white text-[11px] font-medium flex items-center gap-1.5 transition-all"
-                  title="Attach document or code snippet"
+                  title="Attach file"
                 >
                   <Paperclip className="w-3.5 h-3.5" />
-                  <span>Attach File</span>
+                  <span>Attach</span>
                 </button>
                 <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" />
 
-                {/* Slash trigger */}
+                {/* Slash Trigger Pill */}
                 <button
                   type="button"
                   onClick={() => {
@@ -638,17 +789,26 @@ export function AIChatWindow() {
                 </button>
               </div>
 
-              <div className="text-[10px] font-mono text-slate-500">Press Enter to send</div>
+              {/* RAG Toggle Pill inside Composer */}
+              <button
+                type="button"
+                onClick={() => setUseRag(!useRag)}
+                className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono transition-all border ${
+                  useRag ? "bg-[#10B981]/10 border-[#10B981]/30 text-[#10B981]" : "bg-white/[0.04] border-white/10 text-slate-500"
+                }`}
+              >
+                RAG: {useRag ? "ON" : "OFF"}
+              </button>
             </div>
 
-            {/* Attached Files Preview Bar */}
+            {/* Attached Files Preview */}
             {attachedFiles.length > 0 && (
-              <div className="flex flex-wrap gap-2 px-1 pt-1">
+              <div className="flex flex-wrap gap-2 px-1">
                 {attachedFiles.map((att, idx) => (
-                  <div key={idx} className="px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[11px] font-mono flex items-center gap-1.5">
+                  <div key={idx} className="px-2.5 py-1 rounded-lg bg-[#6366F1]/10 border border-[#6366F1]/20 text-indigo-300 text-[11px] font-mono flex items-center gap-1.5">
                     <FileText className="w-3 h-3" />
                     <span>{att.name}</span>
-                    <button type="button" onClick={() => removeAttachment(idx)} className="text-slate-400 hover:text-rose-400 ml-1">
+                    <button type="button" onClick={() => removeAttachment(idx)} className="text-slate-400 hover:text-rose-400 ml-1" aria-label="Remove attachment">
                       <X className="w-3 h-3" />
                     </button>
                   </div>
@@ -661,6 +821,7 @@ export function AIChatWindow() {
               <input
                 ref={textareaRef}
                 type="text"
+                aria-label="Ask AI Assistant"
                 placeholder="Ask AI Assistant or type / for commands..."
                 value={inputPrompt}
                 onChange={(e) => setInputPrompt(e.target.value)}
@@ -679,6 +840,7 @@ export function AIChatWindow() {
                   onClick={handleStopGeneration}
                   className="p-2 rounded-xl bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 transition-all shrink-0"
                   title="Stop Generation"
+                  aria-label="Stop Generation"
                 >
                   <Square className="w-4 h-4 fill-current" />
                 </button>
@@ -686,7 +848,8 @@ export function AIChatWindow() {
                 <button
                   type="submit"
                   disabled={!inputPrompt.trim() && attachedFiles.length === 0}
-                  className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md shrink-0"
+                  className="p-2 rounded-xl bg-[#6366F1] hover:bg-[#4F46E5] text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md shrink-0"
+                  aria-label="Send message"
                 >
                   <Send className="w-4 h-4" />
                 </button>
@@ -697,78 +860,95 @@ export function AIChatWindow() {
       </div>
 
       {/* ---------------------------------------------------- */}
-      {/* 4. Collapsible Right Side Context Drawer              */}
+      {/* 4. Right Collapsible Context Drawer (Hidden by default)*/}
       {/* ---------------------------------------------------- */}
       {showContextDrawer && (
-        <div className="w-80 bg-[#09090e] border-l border-white/[0.06] flex flex-col h-full shrink-0 p-5 space-y-5 overflow-y-auto v2-scrollbar z-20">
-          <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+        <div className="w-80 bg-[#09090D] border-l border-white/[0.04] flex flex-col h-full shrink-0 p-5 space-y-5 overflow-y-auto v2-scrollbar z-20">
+          <div className="flex items-center justify-between border-b border-white/[0.04] pb-3">
             <div className="flex items-center gap-2 text-xs font-bold text-white">
-              <Sliders className="w-4 h-4 text-indigo-400" />
+              <Sliders className="w-4 h-4 text-[#6366F1]" />
               <span>Active Context</span>
             </div>
-            <button onClick={() => setShowContextDrawer(false)} className="text-slate-400 hover:text-white p-1">
+            <button onClick={() => setShowContextDrawer(false)} aria-label="Close Drawer" className="text-slate-400 hover:text-white p-1">
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Active Workspace Details */}
+          {/* Current Workspace */}
           <div className="space-y-2">
-            <div className="text-[10px] font-mono text-slate-500 uppercase">Active Workspace</div>
-            <div className="p-3 rounded-xl bg-[#0d0d14] border border-white/[0.05] space-y-1">
-              <div className="text-xs font-semibold text-white">AI Engineer OS</div>
-              <div className="text-[10px] font-mono text-indigo-400">d:\coding\AI-Engineer-OS</div>
+            <div className="text-[10px] font-mono text-slate-500 uppercase">Current Workspace</div>
+            <div className="p-3 rounded-xl bg-[#0E0E14] border border-white/[0.04] space-y-1">
+              <div className="flex items-center gap-2 text-xs font-semibold text-white">
+                <Folder className="w-3.5 h-3.5 text-indigo-400" />
+                <span>AI Engineer OS</span>
+              </div>
+              <div className="text-[10px] font-mono text-slate-400">d:\coding\AI-Engineer-OS</div>
             </div>
           </div>
 
-          {/* RAG Vector Vault Details */}
+          {/* Attached Documents */}
           <div className="space-y-2">
-            <div className="text-[10px] font-mono text-slate-500 uppercase">Grounded RAG Vault</div>
-            <div className="p-3 rounded-xl bg-[#0d0d14] border border-white/[0.05] space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-300 font-medium">Vector Engine</span>
+            <div className="text-[10px] font-mono text-slate-500 uppercase">Attached Documents</div>
+            <div className="p-3 rounded-xl bg-[#0E0E14] border border-white/[0.04] space-y-2">
+              <div className="text-xs text-slate-300">
+                {attachedFiles.length > 0 ? `${attachedFiles.length} files attached` : "No active file attachments"}
+              </div>
+            </div>
+          </div>
+
+          {/* Current Model */}
+          <div className="space-y-2">
+            <div className="text-[10px] font-mono text-slate-500 uppercase">Current Model</div>
+            <div className="p-3 rounded-xl bg-[#0E0E14] border border-white/[0.04] space-y-1 text-xs">
+              <div className="font-semibold text-indigo-300">{selectedModelObj.name}</div>
+              <div className="text-[10px] font-mono text-slate-500">{selectedModelObj.badge}</div>
+            </div>
+          </div>
+
+          {/* Vector Store Status */}
+          <div className="space-y-2">
+            <div className="text-[10px] font-mono text-slate-500 uppercase">Vector Store Status</div>
+            <div className="p-3 rounded-xl bg-[#0E0E14] border border-white/[0.04] space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">RAG Pipeline</span>
                 <span className={`px-2 py-0.5 rounded text-[10px] font-mono ${useRag ? "bg-emerald-500/10 text-emerald-400" : "bg-white/[0.04] text-slate-500"}`}>
                   {useRag ? "ACTIVE" : "PAUSED"}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Queries are automatically embedded and matched against local documents using cosine similarity.
-              </p>
             </div>
           </div>
 
-          {/* Active Model Specs */}
+          {/* Recent Files */}
           <div className="space-y-2">
-            <div className="text-[10px] font-mono text-slate-500 uppercase">Model Parameters</div>
-            <div className="p-3 rounded-xl bg-[#0d0d14] border border-white/[0.05] space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Selected Engine</span>
-                <span className="text-indigo-300 font-semibold">{selectedModelObj.name}</span>
+            <div className="text-[10px] font-mono text-slate-500 uppercase">Recent Files</div>
+            <div className="p-3 rounded-xl bg-[#0E0E14] border border-white/[0.04] space-y-1 text-xs font-mono text-slate-400">
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-3 h-3 text-slate-500" />
+                <span>src/App.jsx</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Context Window</span>
-                <span className="text-slate-200 font-mono text-[11px]">128k Tokens</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Temperature</span>
-                <span className="text-slate-200 font-mono text-[11px]">0.2 (Precise)</span>
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-3 h-3 text-slate-500" />
+                <span>src/styles/designTokens.css</span>
               </div>
             </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="space-y-2 pt-2">
-            <button
-              onClick={() => {
-                setMessages([]);
-                handleNewChat();
-              }}
-              className="w-full py-2 px-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-slate-300 text-xs font-semibold flex items-center justify-center gap-2 transition-all"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-              <span>Clear Session Memory</span>
-            </button>
           </div>
         </div>
+      )}
+
+      {/* Code Insertion Toast Notification */}
+      {insertedToastId && (
+        <div className="fixed bottom-24 right-8 z-50 px-4 py-2.5 rounded-xl bg-[#10B981]/20 border border-[#10B981]/40 text-[#10B981] text-xs font-mono backdrop-blur-2xl shadow-2xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+          <Check className="w-4 h-4 text-[#10B981]" />
+          <span>✓ Code inserted into Studio</span>
+        </div>
+      )}
+
+      {/* Flagship Autonomous Engineering Task Modal */}
+      {showAutonomousWorkflow && (
+        <AutonomousTaskWorkflow
+          promptText={inputPrompt}
+          onClose={() => setShowAutonomousWorkflow(false)}
+        />
       )}
     </div>
   );

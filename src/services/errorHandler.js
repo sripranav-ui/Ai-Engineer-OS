@@ -59,16 +59,17 @@ export const errorHandler = {
       timestamp: new Date().toISOString()
     };
 
-    if (err instanceof ValidationError) {
-      errorDetails.status = 422;
-      errorDetails.fields = err.fields;
-    } else if (err instanceof AuthError) {
-      errorDetails.status = 401;
-      errorDetails.code = err.code;
-    } else if (err instanceof NetworkError) {
-      errorDetails.status = 503;
+    // Provider & AI Specific Actionable Guidance
+    let userFriendly = errorDetails.message;
+    if (err.message && (err.message.includes("apiKey") || err.message.includes("API key") || err.message.includes("401"))) {
+      userFriendly = "API key missing or invalid. Please configure your key in Settings → AI Providers.";
+    } else if (err.message && (err.message.includes("429") || err.message.includes("Rate limit") || err.message.includes("Quota"))) {
+      userFriendly = "Rate limit or quota exceeded for the active AI Provider. Please retry shortly or switch providers.";
+    } else if (err.message && err.message.includes("Ollama") && (err.message.includes("Failed to fetch") || err.message.includes("connect"))) {
+      userFriendly = "Could not connect to local Ollama instance at http://localhost:11434. Ensure Ollama is running.";
     }
 
+    errorDetails.userFriendly = userFriendly;
     return errorDetails;
   }
 };

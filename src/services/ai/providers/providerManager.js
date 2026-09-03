@@ -125,6 +125,20 @@ class ProviderManager {
   async augmentWithRagContext(messages = [], options = {}) {
     if (options.useKnowledgeBase === false) return messages;
 
+    // Narrow Guard: Prevent duplicate RAG context retrieval if payload already contains explicitly assembled RAG context
+    const hasAlreadyAugmented = Array.isArray(messages)
+      ? messages.some((m) => {
+          const content = typeof m === "string" ? m : m?.content || "";
+          return content.includes("=== RELEVANT KNOWLEDGE CONTEXT ===") || content.includes("--- RELEVANT KNOWLEDGE BASE CONTEXT (RAG) ---");
+        })
+      : typeof messages === "string" &&
+        (messages.includes("=== RELEVANT KNOWLEDGE CONTEXT ===") || messages.includes("--- RELEVANT KNOWLEDGE BASE CONTEXT (RAG) ---"));
+
+    if (hasAlreadyAugmented) {
+      logger.info("[ProviderManager] Explicit RAG context already present in payload. Skipping duplicate retrieval.");
+      return messages;
+    }
+
     try {
       let queryText = "";
       if (typeof messages === "string") {

@@ -63,12 +63,17 @@ export class ChunkingService {
         const contentHash = embeddingService.computeContentHash(chunkText);
         chunks.push({
           id: `chunk_${docId}_${chunkIndex}`,
+          chunkId: `chunk_${docId}_${chunkIndex}`,
           docId,
+          documentId: docId,
           docTitle,
           pageNumber,
           chunkIndex,
           text: chunkText,
+          startOffset: start,
+          endOffset: end,
           characterCount: chunkText.length,
+          tokenEstimate: Math.ceil(chunkText.length / 4),
           contentHash,
           createdAt: doc.createdAt || new Date().toISOString(),
         });

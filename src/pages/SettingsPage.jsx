@@ -165,6 +165,7 @@ function SettingsPage() {
                 { id: "gemini", name: "Gemini" },
                 { id: "anthropic", name: "Claude" },
                 { id: "ollama", name: "Ollama" },
+                { id: "github", name: "GitHub (V1.6)" },
               ].map((p) => (
                 <button
                   key={p.id}
@@ -173,7 +174,7 @@ function SettingsPage() {
                     setSelectedProviderTab(p.id);
                     setTestStatus(null);
                   }}
-                  className={`flex-1 py-1.5 px-2.5 rounded-md text-xs font-semibold transition-all ${
+                  className={`flex-1 py-1.5 px-2 rounded-md text-xs font-semibold transition-all ${
                     selectedProviderTab === p.id
                       ? "bg-indigo-600 text-white shadow-sm"
                       : "text-slate-400 hover:text-white hover:bg-white/5"
@@ -183,6 +184,36 @@ function SettingsPage() {
                 </button>
               ))}
             </div>
+
+            {/* GitHub Integration Form (V1.6) */}
+            {selectedProviderTab === "github" && (
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-white">GitHub Integration (In-Memory Session Auth)</div>
+                    <div className="text-[11px] text-slate-400">Tokens exist only in active session memory (never in localStorage or disk)</div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-900/50 text-indigo-300 border border-indigo-500/30">
+                    Token: [REDACTED]
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">GitHub Personal Access Token (PAT)</label>
+                  <input
+                    type="password"
+                    placeholder="ghp_... or github_pat_..."
+                    onChange={(e) => {
+                      githubService.setToken(e.target.value);
+                    }}
+                    className="w-full bg-[#09090b] border border-white/10 rounded-lg px-3.5 py-2 text-xs text-white outline-none focus:border-indigo-500 font-mono"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Security Note: Token is held strictly in memory for the active session and will be cleared when closed.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* OpenAI Form */}
             {selectedProviderTab === "openai" && (

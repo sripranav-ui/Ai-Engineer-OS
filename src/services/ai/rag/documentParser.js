@@ -71,9 +71,20 @@ export class DocumentParser {
         case ".markdown":
           parsedResult = await this.parseMarkdown(file);
           break;
-        case ".txt":
+        case ".js":
+        case ".ts":
+        case ".tsx":
+        case ".jsx":
+        case ".py":
+        case ".java":
+        case ".cpp":
+        case ".c":
+        case ".cs":
+        case ".html":
+        case ".css":
         case ".json":
         case ".csv":
+        case ".txt":
         default:
           parsedResult = await this.parseTxt(file);
           break;
@@ -82,10 +93,15 @@ export class DocumentParser {
       if (parsedResult.error) {
         return {
           title,
+          filename: title,
+          extension: rawExtension.replace(".", ""),
+          mimeType: file.type || "text/plain",
+          size: file.size || 0,
           text: "",
           type,
           pageCount: 0,
           contentHash: `error_${this.computeContentHash(parsedResult.error)}`,
+          hash: `error_${this.computeContentHash(parsedResult.error)}`,
           error: parsedResult.error,
         };
       }
@@ -94,10 +110,15 @@ export class DocumentParser {
       if (!text) {
         return {
           title,
+          filename: title,
+          extension: rawExtension.replace(".", ""),
+          mimeType: file.type || "text/plain",
+          size: file.size || 0,
           text: "",
           type,
           pageCount: 0,
           contentHash: "empty_0",
+          hash: "empty_0",
           error: "File contains no readable text content",
         };
       }
@@ -105,12 +126,45 @@ export class DocumentParser {
       const contentHash = this.computeContentHash(text);
       const pageCount = parsedResult.pageCount || Math.max(1, Math.ceil(text.length / 2000));
 
+      const words = text.split(/\s+/).filter(Boolean);
+      const wordCount = words.length;
+      const characterCount = text.length;
+      const estimatedReadingTime = `${Math.max(1, Math.ceil(wordCount / 200))} min read`;
+
+      const langMap = {
+        js: "javascript", ts: "typescript", jsx: "javascript", tsx: "typescript",
+        py: "python", java: "java", cpp: "c++", c: "c", cs: "csharp",
+        html: "html", css: "css", md: "markdown", json: "json", csv: "csv", txt: "text", pdf: "pdf"
+      };
+      const extClean = rawExtension.replace(".", "");
+      const language = langMap[extClean] || "text";
+
+      const docTypeMap = {
+        pdf: "pdf", docx: "docx", md: "markdown", json: "structured", csv: "structured"
+      };
+      const documentType = ["js","ts","tsx","jsx","py","java","cpp","c","cs","html","css"].includes(extClean)
+        ? "source_code"
+        : docTypeMap[extClean] || "document";
+
       return {
         title,
+        filename: title,
+        extension: extClean,
+        mimeType: file.type || "text/plain",
+        size: file.size || text.length,
+        createdAt: new Date(file.lastModified || Date.now()).toISOString(),
+        updatedAt: new Date().toISOString(),
+        wordCount,
+        characterCount,
+        estimatedReadingTime,
+        language,
+        documentType,
+        embeddingStatus: "Ready For Embedding",
         text,
         type,
         pageCount,
         contentHash,
+        hash: contentHash,
       };
     } catch (err) {
       ragLogger.error(`Failed to parse file "${title}":`, err);
