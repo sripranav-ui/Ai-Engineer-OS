@@ -11,6 +11,8 @@ import {
 
 import { workTemplates } from "../data/workspaceMockData";
 import eventBus from "../services/plugins/eventBus.js";
+import { useAuthorization } from "../hooks/useAuthorization.js";
+import { PERMISSIONS } from "../services/auth/permissionDefinitions.js";
 
 // LocalStorage Keys
 const STORAGE_KEYS = {
@@ -21,6 +23,7 @@ const STORAGE_KEYS = {
 };
 
 export function CodingWorkspacePage() {
+  const { hasPermission } = useAuthorization();
   // Pure Floating Overlay States
   const [showFileDrawer, setShowFileDrawer] = useState(false);
   const [showTerminalOverlay, setShowTerminalOverlay] = useState(false);
@@ -278,6 +281,9 @@ export function CodingWorkspacePage() {
   }, [currentFiles, activeSplitTab]);
 
   const handleEditContent = (value, pane = "left") => {
+    if (!hasPermission(PERMISSIONS.MODIFY_WORKSPACE)) {
+      return;
+    }
     const targetTab = pane === "left" ? activeTab : activeSplitTab;
     if (!targetTab) return;
 
@@ -306,6 +312,9 @@ export function CodingWorkspacePage() {
   };
 
   const handleCreateNewFile = () => {
+    if (!hasPermission(PERMISSIONS.MODIFY_WORKSPACE)) {
+      return;
+    }
     const newName = prompt("Enter new filename:", "untitled.py");
     if (!newName || !newName.trim()) return;
     const cleanName = newName.trim();
@@ -355,6 +364,15 @@ export function CodingWorkspacePage() {
 
       const timeStr = new Date().toLocaleTimeString();
       setTerminalStdout((prev) => [...prev, { text: `[${timeStr}] $ ${cmd}`, type: "input" }]);
+
+      if (!hasPermission(PERMISSIONS.EXECUTE_TERMINAL)) {
+        setTerminalStdout((prev) => [
+          ...prev,
+          { text: "🔒 [Permission Denied] You do not have 'execute_terminal' capability permission.", type: "error" },
+          { text: "", type: "info" }
+        ]);
+        return;
+      }
 
       const parts = cmd.split(" ");
       const commandName = parts[0].toLowerCase();
@@ -421,6 +439,7 @@ export function CodingWorkspacePage() {
 
   const handleAcceptDiff = () => {
     if (!pendingDiffCode || !activeTab) return;
+    if (!hasPermission(PERMISSIONS.MODIFY_WORKSPACE)) return;
     const existingContent = activeFile?.content || "";
     const updatedContent = existingContent ? `${existingContent}\n\n${pendingDiffCode}` : pendingDiffCode;
     handleEditContent(updatedContent, "left");

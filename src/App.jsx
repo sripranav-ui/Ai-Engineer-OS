@@ -1,6 +1,8 @@
 import React, { Suspense, useContext } from "react";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AuthContext } from "./context/AuthContext";
+import AuthorizationGuard from "./components/Auth/AuthorizationGuard";
+import { PERMISSIONS } from "./services/auth/permissionDefinitions";
 
 // Layout
 import Layout from "./components/Layout/Layout";
@@ -41,6 +43,23 @@ import ErrorBoundary from "./components/Common/ErrorBoundary";
 // =======================================================
 // App.jsx — Conversational AI-First Operating System Routing
 // =======================================================
+
+function UnauthorizedFallback({
+  title = "Access Denied",
+  message = "You do not have the required capability permission to access this route.",
+}) {
+  return (
+    <div className="h-full w-full bg-[#050508] text-slate-100 p-8 flex flex-col items-center justify-center text-center font-sans">
+      <div className="max-w-md p-6 rounded-2xl bg-[#0e0e14] border border-white/[0.08] shadow-xl space-y-4">
+        <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mx-auto text-xl font-bold">
+          🔒
+        </div>
+        <h2 className="text-xl font-bold text-white tracking-tight">{title}</h2>
+        <p className="text-xs text-slate-400 leading-relaxed">{message}</p>
+      </div>
+    </div>
+  );
+}
 
 function ProtectedRoutesWrapper() {
   const { user, loading } = useContext(AuthContext);
@@ -86,7 +105,16 @@ function App() {
             {/* Protected Application Routes */}
             <Route element={<ProtectedRoutesWrapper />}>
               {/* Home Page: Conversational AI Assistant Canvas */}
-              <Route path="/" element={<Suspense fallback={<PageSkeleton />}><AssistantPage /></Suspense>} />
+              <Route
+                path="/"
+                element={
+                  <AuthorizationGuard permission={PERMISSIONS.USE_AI_ASSISTANT} fallback={<UnauthorizedFallback />}>
+                    <Suspense fallback={<PageSkeleton />}>
+                      <AssistantPage />
+                    </Suspense>
+                  </AuthorizationGuard>
+                }
+              />
               <Route path="/assistant" element={<Navigate to="/" replace />} />
               <Route path="/dashboard" element={<Navigate to="/" replace />} />
               <Route path="/workspace" element={<Navigate to="/" replace />} />
@@ -94,11 +122,47 @@ function App() {
               <Route path="/tasks" element={<Navigate to="/planner" replace />} />
 
               {/* Core Feature Pages */}
-              <Route path="/coding-workspace" element={<Suspense fallback={<PageSkeleton />}><CodingWorkspacePage /></Suspense>} />
-              <Route path="/knowledge" element={<Suspense fallback={<PageSkeleton />}><KnowledgeHubPage /></Suspense>} />
+              <Route
+                path="/coding-workspace"
+                element={
+                  <AuthorizationGuard permission={PERMISSIONS.ACCESS_CODING_STUDIO} fallback={<UnauthorizedFallback />}>
+                    <Suspense fallback={<PageSkeleton />}>
+                      <CodingWorkspacePage />
+                    </Suspense>
+                  </AuthorizationGuard>
+                }
+              />
+              <Route
+                path="/knowledge"
+                element={
+                  <AuthorizationGuard permission={PERMISSIONS.ACCESS_KNOWLEDGE} fallback={<UnauthorizedFallback />}>
+                    <Suspense fallback={<PageSkeleton />}>
+                      <KnowledgeHubPage />
+                    </Suspense>
+                  </AuthorizationGuard>
+                }
+              />
               <Route path="/projects" element={<Suspense fallback={<PageSkeleton />}><ProjectsPage /></Suspense>} />
-              <Route path="/planner" element={<Suspense fallback={<PageSkeleton />}><PlannerPage /></Suspense>} />
-              <Route path="/notes" element={<Suspense fallback={<PageSkeleton />}><NotesPage /></Suspense>} />
+              <Route
+                path="/planner"
+                element={
+                  <AuthorizationGuard permission={PERMISSIONS.ACCESS_PLANNER} fallback={<UnauthorizedFallback />}>
+                    <Suspense fallback={<PageSkeleton />}>
+                      <PlannerPage />
+                    </Suspense>
+                  </AuthorizationGuard>
+                }
+              />
+              <Route
+                path="/notes"
+                element={
+                  <AuthorizationGuard permission={PERMISSIONS.ACCESS_NOTES} fallback={<UnauthorizedFallback />}>
+                    <Suspense fallback={<PageSkeleton />}>
+                      <NotesPage />
+                    </Suspense>
+                  </AuthorizationGuard>
+                }
+              />
               <Route path="/settings" element={<Suspense fallback={<PageSkeleton />}><SettingsPage /></Suspense>} />
               <Route path="/analytics" element={<Suspense fallback={<PageSkeleton />}><AnalyticsPage /></Suspense>} />
               <Route path="/profile" element={<Suspense fallback={<PageSkeleton />}><ProfilePage /></Suspense>} />

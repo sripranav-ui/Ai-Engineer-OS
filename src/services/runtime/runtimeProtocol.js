@@ -1,7 +1,7 @@
 /**
  * @file runtimeProtocol.js
- * @description Communication Protocol & Security Schema for V1.3 Local Agent Runtime Gateway.
- * Defines tool call contracts, permission levels, path traversal guards, and secret redaction.
+ * @description Communication Protocol & Security Schema for V1.4 Local Agent Runtime Gateway.
+ * Defines tool call contracts, structured operations, permission mapping, path traversal guards, and secret redaction.
  */
 
 export const RUNTIME_COMMAND_LEVELS = {
@@ -27,6 +27,46 @@ export const RUNTIME_TOOLS = {
   GIT_CHECKOUT: "git_checkout",
   GIT_ADD: "git_add",
   GIT_COMMIT: "git_commit",
+};
+
+export const STRUCTURED_OPERATIONS = {
+  FILESYSTEM_READ: "filesystem.read",
+  FILESYSTEM_WRITE: "filesystem.write",
+  FILESYSTEM_LIST: "filesystem.list",
+  FILESYSTEM_MKDIR: "filesystem.mkdir",
+  FILESYSTEM_DELETE: "filesystem.delete",
+  FILESYSTEM_EXISTS: "filesystem.exists",
+  FILESYSTEM_STAT: "filesystem.stat",
+  GIT_IS_REPO: "git.is_repository",
+  GIT_STATUS: "git.status",
+  GIT_DIFF: "git.diff",
+  GIT_BRANCHES: "git.branches",
+  GIT_CURRENT_BRANCH: "git.current_branch",
+  GIT_LOG: "git.log",
+  GIT_CREATE_BRANCH: "git.create_branch",
+  GIT_CHECKOUT_BRANCH: "git.checkout_branch",
+  GIT_COMMIT: "git.commit",
+  COMMAND_EXECUTE: "command.execute",
+};
+
+export const OPERATION_TO_TOOL_MAP = {
+  [STRUCTURED_OPERATIONS.FILESYSTEM_READ]: RUNTIME_TOOLS.READ_FILE,
+  [STRUCTURED_OPERATIONS.FILESYSTEM_WRITE]: RUNTIME_TOOLS.WRITE_FILE,
+  [STRUCTURED_OPERATIONS.FILESYSTEM_LIST]: RUNTIME_TOOLS.LIST_DIRECTORY,
+  [STRUCTURED_OPERATIONS.FILESYSTEM_MKDIR]: RUNTIME_TOOLS.CREATE_FILE,
+  [STRUCTURED_OPERATIONS.FILESYSTEM_DELETE]: RUNTIME_TOOLS.DELETE_FILE,
+  [STRUCTURED_OPERATIONS.FILESYSTEM_EXISTS]: RUNTIME_TOOLS.READ_FILE,
+  [STRUCTURED_OPERATIONS.FILESYSTEM_STAT]: RUNTIME_TOOLS.READ_FILE,
+  [STRUCTURED_OPERATIONS.GIT_IS_REPO]: RUNTIME_TOOLS.GIT_STATUS,
+  [STRUCTURED_OPERATIONS.GIT_STATUS]: RUNTIME_TOOLS.GIT_STATUS,
+  [STRUCTURED_OPERATIONS.GIT_DIFF]: RUNTIME_TOOLS.GIT_DIFF,
+  [STRUCTURED_OPERATIONS.GIT_BRANCHES]: RUNTIME_TOOLS.GIT_BRANCH,
+  [STRUCTURED_OPERATIONS.GIT_CURRENT_BRANCH]: RUNTIME_TOOLS.GIT_BRANCH,
+  [STRUCTURED_OPERATIONS.GIT_LOG]: RUNTIME_TOOLS.GIT_LOG,
+  [STRUCTURED_OPERATIONS.GIT_CREATE_BRANCH]: RUNTIME_TOOLS.GIT_BRANCH,
+  [STRUCTURED_OPERATIONS.GIT_CHECKOUT_BRANCH]: RUNTIME_TOOLS.GIT_CHECKOUT,
+  [STRUCTURED_OPERATIONS.GIT_COMMIT]: RUNTIME_TOOLS.GIT_COMMIT,
+  [STRUCTURED_OPERATIONS.COMMAND_EXECUTE]: RUNTIME_TOOLS.EXECUTE_COMMAND,
 };
 
 /** Dangerous patterns blocked automatically */
@@ -109,7 +149,103 @@ export function redactSecrets(text = "") {
   if (typeof text !== "string") return text;
   return text
     .replace(/(runtime_tok_[a-f0-9]{20,})/gi, "[REDACTED]")
+    .replace(/(ghp_|gho_|ghu_|ghs_|ghr_|github_pat_)[a-zA-Z0-9_]{16,}/gi, "[REDACTED_GITHUB_PAT]")
     .replace(/(sk-[a-zA-Z0-9]{20,})/g, "sk-***[REDACTED]***")
     .replace(/(AIzaSy[a-zA-Z0-9_-]{33})/g, "AIzaSy***[REDACTED]***")
     .replace(/(Bearer\s+[a-zA-Z0-9._-]{20,})/gi, "Bearer ***[REDACTED]***");
 }
+
+/**
+ * Construct a structured runtime request object
+ * @param {string} operation
+ * @param {Object} payload
+ * @param {string} [workspaceId]
+ * @returns {Object} Structured request
+ */
+export function createRuntimeRequest(operation, payload = {}, workspaceId = "default") {
+  return {
+    id: `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    operation,
+    workspaceId,
+    payload,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+/**
+ * Validate a runtime request structure
+ * @param {Object} request
+ * @returns {{ valid: boolean, error?: string }}
+ */
+export function validateRuntimeRequest(request) {
+  if (!request || typeof request !== "object") {
+    return { valid: false, error: "Request payload must be a non-null object" };
+  }
+
+  if (!request.id || typeof request.id !== "string") {
+    return { valid: false, error: "Request missing valid string 'id'" };
+  }
+
+  if (!request.operation || !Object.values(STRUCTURED_OPERATIONS).includes(request.operation)) {
+    return { valid: false, error: `Request operation '${request.operation}' is unknown or invalid` };
+  }
+
+  if (typeof request.payload !== "object" || request.payload === null) {
+    return { valid: false, error: "Request missing valid payload object" };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Construct a structured runtime response object
+ * @param {string} id
+ * @param {boolean} success
+ * @param {any} [data]
+ * @param {Object} [error]
+ * @returns {Object} Structured response
+ */
+export function createRuntimeResponse(id, success, data = null, error = null) {
+  return {
+    id,
+    success: Boolean(success),
+    data: success ? data : null,
+    error: success ? null : error,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+/**
+ * Validate a runtime response structure
+ * @param {Object} response
+ * @returns {{ valid: boolean, error?: string }}
+ */
+export function validateRuntimeResponse(response) {
+  if (!response || typeof response !== "object") {
+    return { valid: false, error: "Response payload must be a non-null object" };
+  }
+
+  if (!response.id || typeof response.id !== "string") {
+    return { valid: false, error: "Response missing valid string 'id'" };
+  }
+
+  if (typeof response.success !== "boolean") {
+    return { valid: false, error: "Response missing valid boolean 'success'" };
+  }
+
+  return { valid: true };
+}
+
+export default {
+  RUNTIME_COMMAND_LEVELS,
+  RUNTIME_TOOLS,
+  STRUCTURED_OPERATIONS,
+  OPERATION_TO_TOOL_MAP,
+  classifyCommand,
+  validateWorkspacePath,
+  redactSecrets,
+  createRuntimeRequest,
+  validateRuntimeRequest,
+  createRuntimeResponse,
+  validateRuntimeResponse,
+};

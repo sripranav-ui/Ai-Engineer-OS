@@ -1,4 +1,7 @@
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState, useEffect, useContext } from "react";
+import { AuthContext } from "./AuthContext";
+import authorization from "../services/auth/authorization.js";
+import { PERMISSIONS } from "../services/auth/permissionDefinitions.js";
 
 // =======================================================
 // KnowledgeContext.jsx
@@ -20,6 +23,8 @@ const SEED_SUMMARIES = [
 ];
 
 export function KnowledgeProvider({ children }) {
+  const { user } = useContext(AuthContext) || {};
+
   // Flashcards state with Array validation
   const [flashcards, setFlashcards] = useState(() => {
     try {
@@ -57,6 +62,9 @@ export function KnowledgeProvider({ children }) {
 
   // Flashcards actions
   const addFlashcard = (q, a, category) => {
+    if (!user || !authorization.hasPermission(user, PERMISSIONS.MANAGE_KNOWLEDGE)) {
+      return;
+    }
     const newCard = {
       id: Date.now(),
       question: q,
@@ -70,6 +78,9 @@ export function KnowledgeProvider({ children }) {
   };
 
   const reviewFlashcard = (id, score) => {
+    if (!user || !authorization.hasPermission(user, PERMISSIONS.MANAGE_KNOWLEDGE)) {
+      return;
+    }
     setFlashcards((prev) =>
       (Array.isArray(prev) ? prev : []).map((c) => {
         if (c && c.id === id) {
@@ -94,12 +105,18 @@ export function KnowledgeProvider({ children }) {
 
   // Summaries actions
   const toggleFavoriteSummary = (id) => {
+    if (!user || !authorization.hasPermission(user, PERMISSIONS.MANAGE_KNOWLEDGE)) {
+      return;
+    }
     setSummaries((prev) =>
       (Array.isArray(prev) ? prev : []).map((s) => (s && s.id === id ? { ...s, favorite: !s.favorite } : s))
     );
   };
 
   const addSummary = (title, topic, content, tagsStr) => {
+    if (!user || !authorization.hasPermission(user, PERMISSIONS.MANAGE_KNOWLEDGE)) {
+      return;
+    }
     const newSummary = {
       id: Date.now(),
       title,

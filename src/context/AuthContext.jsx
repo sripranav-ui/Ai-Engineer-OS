@@ -1,4 +1,8 @@
 import React, { createContext, useState, useEffect, useMemo } from "react";
+import authorization from "../services/auth/authorization.js";
+import { ROLES, normalizeRole } from "../services/auth/roleDefinitions.js";
+import { getPermissionsForRole } from "../services/auth/rolePermissionMap.js";
+import { logAuditEvent, AUDIT_EVENTS } from "../services/auth/auditLogger.js";
 
 export const AuthContext = createContext();
 
@@ -6,23 +10,22 @@ export const AuthContext = createContext();
 const MOCK_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IlByYW5hdiIsImlhdCI6MTUxNjIzOTAyMn0.signature";
 const MOCK_REFRESH_TOKEN = "refresh_token_ai_engineer_os_secure_ref";
 
-// RBAC Role-to-Permissions definitions
-const ROLE_PERMISSIONS = {
-  admin: ["*"],
-  student: [
-    "view:dashboard",
-    "use:workspace",
-    "use:learning",
-    "use:projects",
-    "use:planner",
-    "use:notes",
-    "use:career",
-    "use:settings"
-  ],
-  guest: [
-    "view:dashboard"
-  ]
-};
+/**
+ * Helper to produce a clean session user object with canonical role and permissions
+ * @param {Object} rawUser
+ * @returns {Object|null}
+ */
+function toSessionUser(rawUser) {
+  if (!rawUser || typeof rawUser !== "object") return null;
+  const { password: _, ...rest } = rawUser;
+  const role = normalizeRole(rest.role);
+  const canonicalPermissions = getPermissionsForRole(role);
+  return {
+    ...rest,
+    role,
+    permissions: canonicalPermissions,
+  };
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -40,14 +43,15 @@ export function AuthProvider({ children }) {
 
   // Initialize users database and active session
   useEffect(() => {
-    // Seed default users
+    // Seed default users with canonical roles and permissions
     const DEFAULT_USERS = [
       {
+        id: "usr_dev_user",
         name: "Pranav",
         email: "pranav@example.com",
         password: "password123",
-        role: "student",
-        permissions: ROLE_PERMISSIONS.student,
+        role: ROLES.USER,
+        permissions: getPermissionsForRole(ROLES.USER),
         bio: "AI Engineering Student & Developer",
         avatarUrl: "",
         joinedDate: "July 2026",
@@ -57,11 +61,12 @@ export function AuthProvider({ children }) {
         accentColorHover: "#2C2C33"
       },
       {
+        id: "usr_dev_admin",
         name: "OS Admin",
         email: "admin@example.com",
         password: "adminpassword",
-        role: "admin",
-        permissions: ROLE_PERMISSIONS.admin,
+        role: ROLES.ADMIN,
+        permissions: getPermissionsForRole(ROLES.ADMIN),
         bio: "AI Engineer OS Global Administrator",
         avatarUrl: "",
         joinedDate: "July 2026",
@@ -82,14 +87,14 @@ export function AuthProvider({ children }) {
     if (activeSession) {
       try {
         const parsedUser = JSON.parse(activeSession);
-        setUser(parsedUser);
+        const sessionUser = toSessionUser(parsedUser);
+        setUser(sessionUser);
         setTokens({ accessToken: MOCK_JWT, refreshToken: MOCK_REFRESH_TOKEN });
       } catch {
         localStorage.removeItem("auth_session");
       }
     } else {
-      const defaultUser = DEFAULT_USERS[0];
-      const { password: _, ...sessionUser } = defaultUser;
+      const sessionUser = toSessionUser(DEFAULT_USERS[0]);
       setUser(sessionUser);
       setTokens({ accessToken: MOCK_JWT, refreshToken: MOCK_REFRESH_TOKEN });
       localStorage.setItem("auth_session", JSON.stringify(sessionUser));
@@ -97,9 +102,16 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  const hasPermission = (permission) => true;
-  const hasRole = (roleName) => true;
-  const hasFeature = (flagName) => true;
+  const hasPermission = (permission) => {
+    const allowed = authorization.hasPermission(user, permission);
+    if (!allowed && user && permission) {
+      logAuditEvent(AUDIT_EVENTS.PERMISSION_DENIED, { permission }, user);
+    }
+    return allowed;
+  };
+
+  const hasRole = (roleName) => authorization.hasRole(user, roleName);
+  const hasFeature = (flagName) => authorization.hasPermission(user, flagName);
 
   const login = (email, password) => {
     return new Promise((resolve, reject) => {
@@ -107,15 +119,16 @@ export function AuthProvider({ children }) {
         const normalizedEmail = email.toLowerCase().trim();
         const allUsers = getUsers();
         const foundUser = allUsers.find(
-          (u) => u.email === normalizedEmail && u.password === password
+          (u) => u.email.toLowerCase() === normalizedEmail && u.password === password
         );
 
         if (foundUser) {
-          const { password: _, ...sessionUser } = foundUser;
+          const sessionUser = toSessionUser(foundUser);
           setUser(sessionUser);
           setTokens({ accessToken: MOCK_JWT, refreshToken: MOCK_REFRESH_TOKEN });
           localStorage.setItem("auth_session", JSON.stringify(sessionUser));
 
+          logAuditEvent(AUDIT_EVENTS.USER_LOGIN, { method: "password" }, sessionUser);
           resolve(sessionUser);
         } else {
           reject(new Error("Invalid email address or security credential."));
@@ -129,7 +142,7 @@ export function AuthProvider({ children }) {
       setTimeout(() => {
         const normalizedEmail = email.toLowerCase().trim();
         const allUsers = getUsers();
-        const existingUser = allUsers.find((u) => u.email === normalizedEmail);
+        const existingUser = allUsers.find((u) => u.email.toLowerCase() === normalizedEmail);
 
         if (existingUser) {
           reject(new Error("An account with this email address already exists."));
@@ -137,11 +150,12 @@ export function AuthProvider({ children }) {
         }
 
         const newUser = {
+          id: `usr_${Date.now()}`,
           name,
-          email: email.toLowerCase(),
+          email: normalizedEmail,
           password,
-          role: "student",
-          permissions: ROLE_PERMISSIONS.student,
+          role: ROLES.USER,
+          permissions: getPermissionsForRole(ROLES.USER),
           bio: "AI Engineering Student",
           avatarUrl: "",
           joinedDate: new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" }),
@@ -154,17 +168,21 @@ export function AuthProvider({ children }) {
         const updatedUsers = [...allUsers, newUser];
         localStorage.setItem("auth_users", JSON.stringify(updatedUsers));
 
-        const { password: _, ...sessionUser } = newUser;
+        const sessionUser = toSessionUser(newUser);
         setUser(sessionUser);
         setTokens({ accessToken: MOCK_JWT, refreshToken: MOCK_REFRESH_TOKEN });
         localStorage.setItem("auth_session", JSON.stringify(sessionUser));
 
+        logAuditEvent(AUDIT_EVENTS.USER_LOGIN, { method: "registration" }, sessionUser);
         resolve(sessionUser);
       }, 300);
     });
   };
 
   const logout = () => {
+    if (user) {
+      logAuditEvent(AUDIT_EVENTS.USER_LOGOUT, {}, user);
+    }
     setUser(null);
     setTokens({ accessToken: null, refreshToken: null });
     localStorage.removeItem("auth_session");
@@ -177,19 +195,26 @@ export function AuthProvider({ children }) {
         return;
       }
 
+      const oldRole = user.role;
+      const newRole = profileData.role ? normalizeRole(profileData.role) : oldRole;
+
       const users = JSON.parse(localStorage.getItem("auth_users")) || [];
       const updatedUsers = users.map((u) => {
         if (u.email.toLowerCase() === user.email.toLowerCase()) {
-          return { ...u, ...profileData };
+          return { ...u, ...profileData, role: newRole };
         }
         return u;
       });
 
       localStorage.setItem("auth_users", JSON.stringify(updatedUsers));
 
-      const updatedSessionUser = { ...user, ...profileData };
+      const updatedSessionUser = toSessionUser({ ...user, ...profileData, role: newRole });
       setUser(updatedSessionUser);
       localStorage.setItem("auth_session", JSON.stringify(updatedSessionUser));
+
+      if (oldRole !== newRole) {
+        logAuditEvent(AUDIT_EVENTS.ROLE_CHANGED, { oldRole, newRole }, updatedSessionUser);
+      }
 
       resolve(updatedSessionUser);
     });
@@ -273,3 +298,4 @@ export function Authorize({ children, permissions = [], roles = [], fallback = n
 }
 
 export default AuthContext;
+

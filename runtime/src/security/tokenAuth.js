@@ -8,7 +8,7 @@ class TokenAuthManager {
   }
 
   /**
-   * Masked token accessor to ensure tokens are never leaked
+   * Return masked token representation
    * @returns {string}
    */
   getMaskedToken() {
@@ -16,7 +16,7 @@ class TokenAuthManager {
   }
 
   /**
-   * Returns redacted token indicator for health metadata
+   * Token accessor returning masked token
    * @returns {string}
    */
   getToken() {
@@ -24,36 +24,36 @@ class TokenAuthManager {
   }
 
   /**
-   * Constant-time token comparison to prevent timing attacks
-   * @param {string} reqToken
+   * Constant-time token validation failing closed on invalid input
+   * @param {string} candidate
    * @returns {boolean}
    */
-  validateToken(reqToken) {
-    if (!reqToken || typeof reqToken !== "string") {
+  validateToken(candidate) {
+    if (!candidate || typeof candidate !== "string") {
       return false;
     }
 
-    const cleanToken = reqToken.replace(/^Bearer\s+/i, "").trim();
+    const cleanToken = candidate.replace(/^Bearer\s+/i, "").trim();
     if (!cleanToken) {
       return false;
     }
 
-    const tokenBuffer = Buffer.from(cleanToken);
-    const sessionBuffer = Buffer.from(this.#sessionToken);
-
-    if (tokenBuffer.length !== sessionBuffer.length) {
-      return false;
-    }
-
     try {
-      return crypto.timingSafeEqual(tokenBuffer, sessionBuffer);
+      const candidateBuffer = Buffer.from(cleanToken, "utf-8");
+      const sessionBuffer = Buffer.from(this.#sessionToken, "utf-8");
+
+      if (candidateBuffer.length !== sessionBuffer.length) {
+        return false;
+      }
+
+      return crypto.timingSafeEqual(candidateBuffer, sessionBuffer);
     } catch {
       return false;
     }
   }
 
   /**
-   * Raw token accessor strictly for test harnesses or explicit authentication callers
+   * Helper strictly for automated test suites
    * @returns {string}
    */
   _getRawTokenForTestingOnly() {
@@ -63,4 +63,5 @@ class TokenAuthManager {
 
 export const tokenAuth = new TokenAuthManager();
 export default tokenAuth;
+
 

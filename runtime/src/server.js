@@ -109,6 +109,18 @@ export function createServer(workspacePath = process.cwd()) {
             return;
           }
 
+          // Security Gate: Validate Workspace Path for file tools
+          const targetFilePath = args.path || args.filePath;
+          if (["read_file", "write_file", "create_file", "delete_file", "list_directory"].includes(toolName)) {
+            const { validateWorkspacePath } = await import("./security/workspaceGuard.js");
+            const pathCheck = validateWorkspacePath(targetFilePath || ".", resolvedWorkspace);
+            if (!pathCheck.valid) {
+              res.writeHead(400, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ ok: false, error: `Security Guard: ${pathCheck.error}` }));
+              return;
+            }
+          }
+
           let result = null;
           switch (toolName) {
             case "read_file":

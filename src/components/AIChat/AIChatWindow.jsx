@@ -6,6 +6,8 @@ import ragContextBuilder from "../../services/ai/rag/contextBuilder.js";
 import { ragEngine } from "../../services/ai/rag/ragEngine.js";
 import eventBus from "../../services/plugins/eventBus.js";
 import aiOrchestrator from "../../services/ai/orchestrator/aiOrchestrator.js";
+import { useAuthorization } from "../../hooks/useAuthorization.js";
+import { PERMISSIONS } from "../../services/auth/permissionDefinitions.js";
 import {
   Sparkles,
   MessageSquare,
@@ -225,6 +227,19 @@ export function AIChatWindow() {
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
     if (!inputPrompt.trim() || isGenerating) return;
+
+    if (!hasPermission(PERMISSIONS.USE_AI_ASSISTANT)) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg_${Date.now()}`,
+          sender: "assistant",
+          text: "🔒 [Permission Denied] You do not have 'use_ai_assistant' capability permission to send AI requests.",
+          timestamp: new Date().toISOString(),
+        }
+      ]);
+      return;
+    }
 
     const text = inputPrompt.trim();
     setInputPrompt("");

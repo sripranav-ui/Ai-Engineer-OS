@@ -1,5 +1,8 @@
 import React, { createContext, useState, useEffect, useMemo, useContext } from "react";
 import { WorkspaceManagerContext } from "./WorkspaceManagerContext";
+import { AuthContext } from "./AuthContext";
+import authorization from "../services/auth/authorization.js";
+import { PERMISSIONS } from "../services/auth/permissionDefinitions.js";
 import repositories from "../repositories";
 
 export const PlannerContext = createContext();
@@ -9,6 +12,7 @@ export const PlannerContext = createContext();
  */
 export function PlannerProvider({ children }) {
   const { activeWorkspaceId } = useContext(WorkspaceManagerContext);
+  const { user } = useContext(AuthContext) || {};
   const [plannerSchedules, setPlannerSchedules] = useState([]);
 
   // Load scheduler list when active workspace changes
@@ -19,6 +23,9 @@ export function PlannerProvider({ children }) {
   }, [activeWorkspaceId]);
 
   const updateSchedules = (nextList) => {
+    if (!user || !authorization.hasPermission(user, PERMISSIONS.MANAGE_TASKS)) {
+      return;
+    }
     setPlannerSchedules(nextList);
     repositories.planner().saveScheduleList(nextList, activeWorkspaceId);
   };
@@ -26,7 +33,7 @@ export function PlannerProvider({ children }) {
   const value = useMemo(() => ({
     plannerSchedules,
     setPlannerSchedules: updateSchedules,
-  }), [plannerSchedules, activeWorkspaceId]);
+  }), [plannerSchedules, activeWorkspaceId, user]);
 
   return (
     <PlannerContext.Provider value={value}>

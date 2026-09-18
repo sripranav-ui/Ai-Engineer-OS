@@ -1,4 +1,7 @@
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState, useEffect, useContext } from "react";
+import { AuthContext } from "./AuthContext";
+import authorization from "../services/auth/authorization.js";
+import { PERMISSIONS } from "../services/auth/permissionDefinitions.js";
 
 // =======================================================
 // NotesContext.jsx
@@ -34,6 +37,8 @@ const INITIAL_NOTES = [
 ];
 
 export function NotesProvider({ children }) {
+  const { user } = useContext(AuthContext) || {};
+
   // --- 1. Folders ---
   const [folders, setFolders] = useState(() => {
     try {
@@ -66,6 +71,10 @@ export function NotesProvider({ children }) {
 
   // --- Actions ---
   const addNote = (noteData = {}) => {
+    if (!user || !authorization.hasPermission(user, PERMISSIONS.MANAGE_NOTES)) {
+      return null;
+    }
+
     const title = noteData.title || "Untitled Note";
     const content = noteData.content || "";
     const folder = noteData.folder || "General";
@@ -87,17 +96,26 @@ export function NotesProvider({ children }) {
   };
 
   const updateNote = (id, updatedFields) => {
+    if (!user || !authorization.hasPermission(user, PERMISSIONS.MANAGE_NOTES)) {
+      return;
+    }
     setNotes((prev) =>
       (Array.isArray(prev) ? prev : []).map((n) => (n.id === id ? { ...n, ...updatedFields, updatedAt: new Date().toISOString() } : n))
     );
   };
 
   const deleteNote = (id) => {
+    if (!user || !authorization.hasPermission(user, PERMISSIONS.MANAGE_NOTES)) {
+      return;
+    }
     setNotes((prev) => (Array.isArray(prev) ? prev : []).filter((n) => n.id !== id));
   };
 
   const addFolder = (name) => {
     if (!name || !name.trim()) return;
+    if (!user || !authorization.hasPermission(user, PERMISSIONS.MANAGE_NOTES)) {
+      return;
+    }
     const cleanName = name.trim();
     setFolders((prev) => {
       const list = Array.isArray(prev) ? prev : INITIAL_FOLDERS;

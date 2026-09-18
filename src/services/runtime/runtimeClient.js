@@ -1,25 +1,57 @@
 /**
  * @file runtimeClient.js
- * @description Local Agent Runtime & Developer Tool Gateway Client for AI Engineer OS V1.4.
- * Interacts with the native Node.js Local Runtime Daemon (http://127.0.0.1:7070), manages
- * authentication tokens, workspace isolation, command classification, audit logging,
- * and seamless fallback to Browser Mode when offline.
+ * @description Local Agent Runtime & Gateway Client for AI Engineer OS.
+ * Manages authorization checks, structured request/response protocol, daemon communications,
+ * path traversal guards, command classification, audit logging, and browser fallback.
  */
 
 import {
   RUNTIME_TOOLS,
   RUNTIME_COMMAND_LEVELS,
+  STRUCTURED_OPERATIONS,
+  OPERATION_TO_TOOL_MAP,
   classifyCommand,
   validateWorkspacePath,
   redactSecrets,
+  createRuntimeRequest,
+  validateRuntimeRequest,
+  createRuntimeResponse,
 } from "./runtimeProtocol.js";
+import {
+  RUNTIME_ERROR_CODES,
+  createRuntimeError,
+} from "./runtimeErrors.js";
 import runtimeCapabilities from "./runtimeCapabilities.js";
+import { hasPermission } from "../auth/authorization.js";
+import { PERMISSIONS } from "../auth/permissionDefinitions.js";
+import { logAuditEvent, AUDIT_EVENTS } from "../auth/auditLogger.js";
 import eventBus from "../plugins/eventBus.js";
 import logger from "../../utils/logger.js";
 
 const RUNTIME_DAEMON_URL = "http://127.0.0.1:7070";
 const AUDIT_LOG_KEY = "ai_runtime_audit_logs_v1";
 const MAX_AUDIT_ENTRIES = 100;
+
+/** Map structured operations to capability permissions */
+const OPERATION_PERMISSION_MAP = {
+  [STRUCTURED_OPERATIONS.FILESYSTEM_READ]: PERMISSIONS.ACCESS_CODING_STUDIO,
+  [STRUCTURED_OPERATIONS.FILESYSTEM_LIST]: PERMISSIONS.ACCESS_CODING_STUDIO,
+  [STRUCTURED_OPERATIONS.FILESYSTEM_EXISTS]: PERMISSIONS.ACCESS_CODING_STUDIO,
+  [STRUCTURED_OPERATIONS.FILESYSTEM_STAT]: PERMISSIONS.ACCESS_CODING_STUDIO,
+  [STRUCTURED_OPERATIONS.FILESYSTEM_WRITE]: PERMISSIONS.MODIFY_WORKSPACE,
+  [STRUCTURED_OPERATIONS.FILESYSTEM_MKDIR]: PERMISSIONS.MODIFY_WORKSPACE,
+  [STRUCTURED_OPERATIONS.FILESYSTEM_DELETE]: PERMISSIONS.MODIFY_WORKSPACE,
+  [STRUCTURED_OPERATIONS.GIT_IS_REPO]: PERMISSIONS.READ_REPOSITORY,
+  [STRUCTURED_OPERATIONS.GIT_STATUS]: PERMISSIONS.READ_REPOSITORY,
+  [STRUCTURED_OPERATIONS.GIT_DIFF]: PERMISSIONS.READ_REPOSITORY,
+  [STRUCTURED_OPERATIONS.GIT_BRANCHES]: PERMISSIONS.READ_REPOSITORY,
+  [STRUCTURED_OPERATIONS.GIT_CURRENT_BRANCH]: PERMISSIONS.READ_REPOSITORY,
+  [STRUCTURED_OPERATIONS.GIT_LOG]: PERMISSIONS.READ_REPOSITORY,
+  [STRUCTURED_OPERATIONS.GIT_CREATE_BRANCH]: PERMISSIONS.CREATE_BRANCH,
+  [STRUCTURED_OPERATIONS.GIT_CHECKOUT_BRANCH]: PERMISSIONS.SWITCH_BRANCH,
+  [STRUCTURED_OPERATIONS.GIT_COMMIT]: PERMISSIONS.CREATE_COMMIT,
+  [STRUCTURED_OPERATIONS.COMMAND_EXECUTE]: PERMISSIONS.EXECUTE_TERMINAL,
+};
 
 class RuntimeClient {
   constructor() {
@@ -88,67 +120,95 @@ class RuntimeClient {
   }
 
   /**
-   * Primary Tool Invocation Entry Point
-   * @param {string} toolName - Tool identifier from RUNTIME_TOOLS
-   * @param {Object} args - Tool arguments
+   * Primary Structured Operation Entry Point
+   * @param {string} operation - Structured operation key from STRUCTURED_OPERATIONS
+   * @param {Object} payload - Operation parameters
+   * @param {Object} user - Authenticated user identity
    * @param {Object} [options] - Options ({ userApproved: boolean })
-   * @returns {Promise<{ success: boolean, toolName: string, output: any, error?: string, durationMs: number, level?: string }>}
+   * @returns {Promise<Object>} Structured response { id, success, data, error, durationMs }
    */
-  async invokeTool(toolName, args = {}, options = {}) {
+  async request(operation, payload = {}, user = null, options = {}) {
     const startTime = performance.now();
+    const req = createRuntimeRequest(operation, payload);
+    const reqValidation = validateRuntimeRequest(req);
+
+    if (!reqValidation.valid) {
+      const err = createRuntimeError(
+        RUNTIME_ERROR_CODES.INVALID_REQUEST,
+        reqValidation.error,
+        operation
+      );
+      this._recordAudit(operation, payload, "BLOCKED", err.message, user, 0);
+      return createRuntimeResponse(req.id, false, null, err.toJSON());
+    }
+
+    // Security Gate 1: Authorization Permission Check (Fail Closed)
+    const requiredPermission = OPERATION_PERMISSION_MAP[operation] || PERMISSIONS.ACCESS_CODING_STUDIO;
+    if (!user || !hasPermission(user, requiredPermission)) {
+      const err = createRuntimeError(
+        RUNTIME_ERROR_CODES.AUTHORIZATION_FAILURE,
+        `User identity missing or lacks capability permission '${requiredPermission}'`,
+        operation,
+        { requiredPermission }
+      );
+      logAuditEvent(AUDIT_EVENTS.PERMISSION_DENIED, { operation, requiredPermission }, user);
+      this._recordAudit(operation, payload, "PERMISSION_DENIED", err.message, user, 0);
+      return createRuntimeResponse(req.id, false, null, err.toJSON());
+    }
+
+    // Security Gate 2: Workspace Guard Path Validation
+    const targetPath = payload.path || payload.filePath || payload.targetPath;
     const workspacePath = runtimeCapabilities.getCapabilities().workspacePath;
 
-    // Security Gate 1: Path Traversal Check for file tools
-    if (args.path || args.filePath || args.targetPath) {
-      const targetPath = args.path || args.filePath || args.targetPath;
+    if (targetPath) {
       const pathVal = validateWorkspacePath(targetPath, workspacePath);
       if (!pathVal.valid) {
-        this._logAudit(toolName, args, "BLOCKED", pathVal.error, 0);
-        return {
-          success: false,
-          toolName,
-          output: `[Security Guard] ${pathVal.error}`,
-          error: pathVal.error,
-          durationMs: 0,
-        };
+        const err = createRuntimeError(
+          RUNTIME_ERROR_CODES.WORKSPACE_VIOLATION,
+          pathVal.error,
+          operation,
+          { targetPath, workspacePath }
+        );
+        this._recordAudit(operation, payload, "BLOCKED", pathVal.error, user, 0);
+        return createRuntimeResponse(req.id, false, null, err.toJSON());
       }
     }
 
-    // Security Gate 2: Command Classification Check
-    if (toolName === RUNTIME_TOOLS.EXECUTE_COMMAND || toolName === RUNTIME_TOOLS.RUN_TESTS || toolName === RUNTIME_TOOLS.RUN_BUILD) {
-      const commandText = args.command || (toolName === RUNTIME_TOOLS.RUN_TESTS ? "npm test" : "npm run build");
+    // Map structured operation to toolName
+    const toolName = OPERATION_TO_TOOL_MAP[operation] || RUNTIME_TOOLS.READ_FILE;
+
+    // Security Gate 3: Command Policy Safety Check
+    if (operation === STRUCTURED_OPERATIONS.COMMAND_EXECUTE) {
+      const commandText = payload.command || "";
       const classification = classifyCommand(commandText);
 
       if (classification.level === RUNTIME_COMMAND_LEVELS.BLOCKED) {
-        const errorMsg = `Command blocked by Security Guard: ${classification.reason}`;
-        this._logAudit(toolName, args, "BLOCKED", errorMsg, 0);
-        return {
-          success: false,
-          toolName,
-          output: `[Command Guard] ${errorMsg}`,
-          error: errorMsg,
-          durationMs: 0,
-        };
+        const err = createRuntimeError(
+          RUNTIME_ERROR_CODES.COMMAND_BLOCKED,
+          `Command blocked by security policy: ${classification.reason}`,
+          operation,
+          { command: commandText }
+        );
+        this._recordAudit(operation, payload, "BLOCKED", err.message, user, 0);
+        return createRuntimeResponse(req.id, false, null, err.toJSON());
       }
 
       if (classification.level === RUNTIME_COMMAND_LEVELS.APPROVAL_REQUIRED && !options.userApproved) {
-        const approvalMsg = `User approval required: ${classification.reason}`;
-        this._logAudit(toolName, args, "PENDING_APPROVAL", approvalMsg, 0);
-        return {
-          success: false,
-          requiresApproval: true,
-          toolName,
-          output: `[Tool Gateway] ${approvalMsg}`,
-          error: approvalMsg,
-          durationMs: 0,
-        };
+        const err = createRuntimeError(
+          RUNTIME_ERROR_CODES.AUTHORIZATION_FAILURE,
+          `User approval required: ${classification.reason}`,
+          operation,
+          { requiresApproval: true }
+        );
+        this._recordAudit(operation, payload, "PENDING_APPROVAL", err.message, user, 0);
+        return createRuntimeResponse(req.id, false, null, err.toJSON());
       }
     }
 
-    // 🚀 EXECUTE ROUTING: Local Runtime Daemon vs Browser Mode Fallback
+    // Execute via Native Local Runtime Daemon if connected
     if (this.connectionState === "CONNECTED" && this.sessionToken) {
       try {
-        const response = await fetch(`${RUNTIME_DAEMON_URL}/api/tools/execute`, {
+        const daemonRes = await fetch(`${RUNTIME_DAEMON_URL}/api/tools/execute`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -156,118 +216,188 @@ class RuntimeClient {
           },
           body: JSON.stringify({
             toolName,
-            args,
+            args: payload,
             userApproved: options.userApproved || false,
           }),
         });
 
-        const data = await response.json();
+        const data = await daemonRes.json();
         const durationMs = Math.round(performance.now() - startTime);
 
-        if (response.ok && data.success) {
-          const formattedOutput = data.result?.stdout !== undefined ? data.result.stdout || data.result.stderr : JSON.stringify(data.result);
-          const redactedOutput = redactSecrets(formattedOutput || `[Native Daemon] Executed ${toolName}`);
-
-          this._logAudit(toolName, args, "SUCCESS", redactedOutput, durationMs);
-          return {
-            success: true,
-            toolName,
-            output: `[Native Daemon] ${redactedOutput}`,
-            result: data.result,
-            durationMs,
-          };
+        if (daemonRes.ok && data.success) {
+          const redactedOut = redactSecrets(
+            typeof data.result === "string"
+              ? data.result
+              : data.result?.stdout || data.result?.stderr || JSON.stringify(data.result)
+          );
+          this._recordAudit(operation, payload, "SUCCESS", redactedOut, user, durationMs);
+          return createRuntimeResponse(req.id, true, { result: data.result, output: redactedOut });
         } else {
-          const errorMsg = data.error || data.result?.stderr || "Daemon tool execution failed";
-          this._logAudit(toolName, args, "FAILED", errorMsg, durationMs);
-          return {
-            success: false,
-            toolName,
-            output: `[Native Daemon Error] ${errorMsg}`,
-            error: errorMsg,
-            durationMs,
-          };
+          const errText = data.error || data.result?.stderr || "Native daemon execution failed";
+          const err = createRuntimeError(
+            RUNTIME_ERROR_CODES.FILESYSTEM_FAILURE,
+            errText,
+            operation
+          );
+          this._recordAudit(operation, payload, "FAILED", errText, user, durationMs);
+          return createRuntimeResponse(req.id, false, null, err.toJSON());
         }
-      } catch (err) {
-        logger.warn(`[RuntimeClient] Daemon call failed, falling back to Browser Mode: ${err.message}`);
+      } catch (fetchErr) {
+        logger.warn(`[RuntimeClient] Daemon call failed, invoking browser fallback: ${fetchErr.message}`);
       }
     }
 
-    // 🌐 BROWSER MODE FALLBACK
-    return this._invokeBrowserFallback(toolName, args, startTime);
+    // Browser Mode Fallback Execution
+    const durationMs = Math.round(performance.now() - startTime);
+    const fallbackRes = this._invokeBrowserFallback(operation, toolName, payload);
+    this._recordAudit(operation, payload, "SUCCESS_BROWSER_FALLBACK", fallbackRes.output, user, durationMs);
+    return createRuntimeResponse(req.id, true, fallbackRes);
   }
 
   /** Browser Mode Execution Fallback */
-  _invokeBrowserFallback(toolName, args, startTime) {
-    let result = null;
-    switch (toolName) {
-      case RUNTIME_TOOLS.READ_FILE:
-        result = { success: true, output: `[Browser Mode] Read file: ${args.path}` };
+  _invokeBrowserFallback(operation, toolName, payload) {
+    let output = `[Browser Mode] Executed ${operation}`;
+    let result = {};
+
+    switch (operation) {
+      case STRUCTURED_OPERATIONS.FILESYSTEM_READ:
+        output = `[Browser Mode] Read content of file: ${payload.path || payload.filePath}`;
+        result = { exists: true, content: `[Browser Mode Mock Content for ${payload.path || payload.filePath}]` };
         break;
 
-      case RUNTIME_TOOLS.WRITE_FILE:
-      case RUNTIME_TOOLS.CREATE_FILE:
-        result = { success: true, output: `[Browser Mode] File saved: ${args.path || args.filePath}` };
-        eventBus.emit("RESTORE_FILE_CHECKPOINT", { path: args.path, content: args.content });
+      case STRUCTURED_OPERATIONS.FILESYSTEM_EXISTS:
+        output = `[Browser Mode] Exists check: ${payload.path}`;
+        result = { exists: true };
         break;
 
-      case RUNTIME_TOOLS.DELETE_FILE:
-        result = { success: true, output: `[Browser Mode] File deleted: ${args.path}` };
+      case STRUCTURED_OPERATIONS.FILESYSTEM_STAT:
+        output = `[Browser Mode] Stat: ${payload.path}`;
+        result = { stat: { isFile: true, size: 1024, mtime: new Date().toISOString() } };
         break;
 
-      case RUNTIME_TOOLS.EXECUTE_COMMAND:
-      case RUNTIME_TOOLS.RUN_TESTS:
-      case RUNTIME_TOOLS.RUN_BUILD:
-        const cmdStr = args.command || (toolName === RUNTIME_TOOLS.RUN_TESTS ? "npm test" : "npm run build");
-        eventBus.emit("AGENT_TERMINAL_COMMAND", { command: cmdStr, cwd: "D:\\coding\\AI-Engineer-OS" });
-        result = { success: true, output: `[Browser Mode Overlay] Executed: ${cmdStr}` };
+      case STRUCTURED_OPERATIONS.FILESYSTEM_LIST:
+        output = `[Browser Mode] Directory list: ${payload.path}`;
+        result = { files: ["main.py", "package.json", "src/"] };
+        break;
+
+      case STRUCTURED_OPERATIONS.FILESYSTEM_WRITE:
+      case STRUCTURED_OPERATIONS.FILESYSTEM_MKDIR:
+        output = `[Browser Mode] Wrote target: ${payload.path || payload.filePath}`;
+        result = { written: true };
+        eventBus.emit("RESTORE_FILE_CHECKPOINT", { path: payload.path, content: payload.content });
+        break;
+
+      case STRUCTURED_OPERATIONS.FILESYSTEM_DELETE:
+        output = `[Browser Mode] Deleted target: ${payload.path}`;
+        result = { deleted: true };
+        break;
+
+      case STRUCTURED_OPERATIONS.GIT_IS_REPO:
+      case STRUCTURED_OPERATIONS.GIT_STATUS:
+        output = `[Browser Mode] Git status: On branch main, working tree clean`;
+        result = { isRepository: true, status: "On branch main, working tree clean", files: [] };
+        break;
+
+      case STRUCTURED_OPERATIONS.GIT_DIFF:
+        output = `[Browser Mode] Git diff: No active changes`;
+        result = { diff: "" };
+        break;
+
+      case STRUCTURED_OPERATIONS.GIT_BRANCHES:
+        output = `[Browser Mode] Git branches: main`;
+        result = { branches: ["main"] };
+        break;
+
+      case STRUCTURED_OPERATIONS.GIT_CURRENT_BRANCH:
+        output = `[Browser Mode] Git active branch: main`;
+        result = { currentBranch: "main" };
+        break;
+
+      case STRUCTURED_OPERATIONS.GIT_LOG:
+        output = `[Browser Mode] Git log history`;
+        result = { commits: [{ hash: "abc1234", message: "Initial commit" }] };
+        break;
+
+      case STRUCTURED_OPERATIONS.GIT_CREATE_BRANCH:
+        output = `[Browser Mode] Created branch: ${payload.branchName}`;
+        result = { branchCreated: true, branchName: payload.branchName };
+        break;
+
+      case STRUCTURED_OPERATIONS.GIT_CHECKOUT_BRANCH:
+        output = `[Browser Mode] Switched to branch: ${payload.branchName}`;
+        result = { branchSwitched: true, branchName: payload.branchName };
+        break;
+
+      case STRUCTURED_OPERATIONS.GIT_COMMIT:
+        output = `[Browser Mode] Committed: ${payload.commitMessage}`;
+        result = { committed: true, hash: `mock_${Date.now().toString(36)}`, message: payload.commitMessage };
+        break;
+
+      case STRUCTURED_OPERATIONS.COMMAND_EXECUTE:
+        eventBus.emit("AGENT_TERMINAL_COMMAND", { command: payload.command, cwd: payload.cwd || "D:\\coding\\AI-Engineer-OS" });
+        output = `[Browser Mode Terminal] Executed: ${payload.command}`;
+        result = { stdout: output, stderr: "", exitCode: 0 };
         break;
 
       default:
-        result = { success: true, output: `[Browser Mode] Executed ${toolName}` };
+        result = { executed: true };
     }
 
-    const durationMs = Math.round(performance.now() - startTime);
-    const redactedOutput = redactSecrets(typeof result.output === "string" ? result.output : JSON.stringify(result.output));
+    return { output: redactSecrets(output), result };
+  }
 
-    this._logAudit(toolName, args, "SUCCESS_BROWSER_FALLBACK", redactedOutput, durationMs);
+  // --- High Level Convenience API ---
+
+  async readFile(path, user) {
+    return this.request(STRUCTURED_OPERATIONS.FILESYSTEM_READ, { path }, user);
+  }
+
+  async writeFile(path, content, user) {
+    return this.request(STRUCTURED_OPERATIONS.FILESYSTEM_WRITE, { path, content }, user);
+  }
+
+  async listDirectory(path, user) {
+    return this.request(STRUCTURED_OPERATIONS.FILESYSTEM_LIST, { path }, user);
+  }
+
+  async createDirectory(path, user) {
+    return this.request(STRUCTURED_OPERATIONS.FILESYSTEM_MKDIR, { path }, user);
+  }
+
+  async deleteFile(path, user) {
+    return this.request(STRUCTURED_OPERATIONS.FILESYSTEM_DELETE, { path }, user);
+  }
+
+  async exists(path, user) {
+    return this.request(STRUCTURED_OPERATIONS.FILESYSTEM_EXISTS, { path }, user);
+  }
+
+  async stat(path, user) {
+    return this.request(STRUCTURED_OPERATIONS.FILESYSTEM_STAT, { path }, user);
+  }
+
+  async executeCommand(command, cwd, user, options = {}) {
+    return this.request(STRUCTURED_OPERATIONS.COMMAND_EXECUTE, { command, cwd }, user, options);
+  }
+
+  getWorkspaceInfo() {
     return {
-      success: result.success,
-      toolName,
-      output: redactedOutput,
-      durationMs,
+      workspacePath: runtimeCapabilities.getCapabilities().workspacePath,
+      connected: this.connectionState === "CONNECTED",
     };
   }
 
-  /** Get audit logs */
-  getAuditLogs(limit = 20) {
-    return this.auditLogs.slice(0, limit);
-  }
-
-  /** Clear audit logs */
-  clearAuditLogs() {
-    this.auditLogs = [];
-    this._saveAuditLogs();
-  }
-
-  /** Toggle connection status for testing */
-  toggleConnection(connectedStatus) {
-    if (connectedStatus) {
-      this.checkDaemonHealth();
-    } else {
-      this._setOffline("User manual disconnect");
-    }
-  }
-
-  /** @private Record audit entry */
-  _logAudit(tool, args, status, output, durationMs) {
+  /** Audit logging helper */
+  _recordAudit(operation, payload, status, output, user, durationMs) {
     const entry = {
       id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       timestamp: new Date().toISOString(),
-      tool,
-      args: redactSecrets(JSON.stringify(args)),
+      operation,
+      payload: redactSecrets(JSON.stringify(payload)),
+      user: user?.email || user?.id || "anonymous",
       workspace: runtimeCapabilities.getCapabilities().workspacePath,
       status,
-      output: redactSecrets(output),
+      output: redactSecrets(typeof output === "string" ? output : JSON.stringify(output)),
       durationMs,
     };
 
@@ -275,6 +405,21 @@ class RuntimeClient {
     if (this.auditLogs.length > MAX_AUDIT_ENTRIES) {
       this.auditLogs = this.auditLogs.slice(0, MAX_AUDIT_ENTRIES);
     }
+    this._saveAuditLogs();
+
+    logAuditEvent(
+      AUDIT_EVENTS.RUNTIME_ACTION,
+      { operation, status, durationMs },
+      user
+    );
+  }
+
+  getAuditLogs(limit = 20) {
+    return this.auditLogs.slice(0, limit);
+  }
+
+  clearAuditLogs() {
+    this.auditLogs = [];
     this._saveAuditLogs();
   }
 

@@ -1,5 +1,8 @@
 import React, { createContext, useState, useEffect, useMemo, useContext, useCallback } from "react";
 import { WorkspaceManagerContext } from "./WorkspaceManagerContext";
+import { AuthContext } from "./AuthContext";
+import authorization from "../services/auth/authorization.js";
+import { PERMISSIONS } from "../services/auth/permissionDefinitions.js";
 import projectEngine from "../services/projects/projectEngine";
 import taskEngine from "../services/projects/taskEngine";
 import sprintEngine from "../services/projects/sprintEngine";
@@ -13,6 +16,7 @@ export const ProjectsContext = createContext(null);
 
 export function ProjectsProvider({ children }) {
   const { activeWorkspaceId } = useContext(WorkspaceManagerContext);
+  const { user } = useContext(AuthContext) || {};
   const [projects, setProjects] = useState([]);
   const [activeProjectId, setActiveProjectId] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -41,6 +45,9 @@ export function ProjectsProvider({ children }) {
   // Project CRUD
   const createProject = useCallback(
     (data) => {
+      if (!user || !authorization.hasPermission(user, PERMISSIONS.CREATE_PROJECT)) {
+        return null;
+      }
       const newProj = projectEngine.createProject(data, activeWorkspaceId);
       const updated = projectEngine.getProjects(activeWorkspaceId);
       setProjects(updated);
@@ -48,11 +55,14 @@ export function ProjectsProvider({ children }) {
       activityEngine.logEvent(newProj.id, "PROJECT_CREATED", `Created project "${newProj.title}"`);
       return newProj;
     },
-    [activeWorkspaceId]
+    [activeWorkspaceId, user]
   );
 
   const createFromTemplate = useCallback(
     (templateId, customTitle) => {
+      if (!user || !authorization.hasPermission(user, PERMISSIONS.CREATE_PROJECT)) {
+        return null;
+      }
       const newProj = templateEngine.createFromTemplate(templateId, customTitle, activeWorkspaceId);
       const updated = projectEngine.getProjects(activeWorkspaceId);
       setProjects(updated);
@@ -60,30 +70,36 @@ export function ProjectsProvider({ children }) {
       activityEngine.logEvent(newProj.id, "PROJECT_CREATED", `Created project "${newProj.title}" from template`);
       return newProj;
     },
-    [activeWorkspaceId]
+    [activeWorkspaceId, user]
   );
 
   // Task CRUD & Kanban operations
   const createTask = useCallback(
     (taskData) => {
-      if (!activeProjectId) return;
+      if (!activeProjectId) return null;
+      if (!user || !authorization.hasPermission(user, PERMISSIONS.MODIFY_PROJECT)) {
+        return null;
+      }
       const newTask = taskEngine.createTask(activeProjectId, taskData, activeWorkspaceId);
       const updatedTasks = taskEngine.getProjectTasks(activeProjectId, activeWorkspaceId);
       setTasks(updatedTasks);
       activityEngine.logEvent(activeProjectId, "TASK_CREATED", `Created task "${newTask.title}"`);
       return newTask;
     },
-    [activeProjectId, activeWorkspaceId]
+    [activeProjectId, activeWorkspaceId, user]
   );
 
   const moveTaskStatus = useCallback(
     (taskId, nextStatus) => {
       if (!activeProjectId) return;
+      if (!user || !authorization.hasPermission(user, PERMISSIONS.MODIFY_PROJECT)) {
+        return;
+      }
       const updatedTasks = taskEngine.moveTaskStatus(activeProjectId, taskId, nextStatus, activeWorkspaceId);
       setTasks(updatedTasks);
       activityEngine.logEvent(activeProjectId, "TASK_MOVED", `Moved task to ${nextStatus}`);
     },
-    [activeProjectId, activeWorkspaceId]
+    [activeProjectId, activeWorkspaceId, user]
   );
 
   const value = useMemo(
