@@ -1,32 +1,34 @@
-import logger from "../utils/logger";
-import storageService from "../services/storageService";
+import logger from "../utils/logger.js";
+import storageService from "../services/storageService.js";
 
 /**
  * UserRepository strategies implementation (Abstracting local persistence with namespacing)
  */
 export const UserRepository = {
   /**
-   * Fetches profile data details scoped by active workspace
+   * Fetches profile data details scoped by active user
    */
-  getProfile: async (workspaceId = "default") => {
-    logger.info(`[UserRepository] Retrieving user profile for workspace "${workspaceId}"...`);
+  getProfile: async (workspaceId = "default", userId = null) => {
+    const activeUserId = userId || storageService.getCurrentUserId();
+    logger.info(`[UserRepository] Retrieving user profile for user "${activeUserId}"...`);
     return {
-      name: storageService.get(`${workspaceId}_profileName`, "Pranav"),
-      bio: storageService.get(`${workspaceId}_profileBio`, "AI Engineering student"),
-      xp: Number(storageService.get(`${workspaceId}_xp`, "120")),
-      streak: Number(storageService.get(`${workspaceId}_streak`, "3")),
+      name: storageService.getInitialScopedData("profileName", activeUserId, "Pranav"),
+      bio: storageService.getInitialScopedData("profileBio", activeUserId, "AI Engineering student"),
+      xp: Number(storageService.getInitialScopedData("xp", activeUserId, 120)) || 120,
+      streak: Number(storageService.getInitialScopedData("streak", activeUserId, 3)) || 3,
     };
   },
 
   /**
-   * Saves profile bio adjustments scoped by active workspace
+   * Saves profile bio adjustments scoped by active user
    */
-  saveProfile: async (profile, workspaceId = "default") => {
-    logger.info(`[UserRepository] Persisting updates for workspace "${workspaceId}"...`, profile);
-    if (profile.name) storageService.set(`${workspaceId}_profileName`, profile.name);
-    if (profile.bio) storageService.set(`${workspaceId}_profileBio`, profile.bio);
-    if (profile.xp !== undefined) storageService.set(`${workspaceId}_xp`, profile.xp);
-    if (profile.streak !== undefined) storageService.set(`${workspaceId}_streak`, profile.streak);
+  saveProfile: async (profile, workspaceId = "default", userId = null) => {
+    const activeUserId = userId || storageService.getCurrentUserId();
+    logger.info(`[UserRepository] Persisting updates for user "${activeUserId}"...`, profile);
+    if (profile.name) storageService.set(storageService.getUserKey("profileName", activeUserId), profile.name);
+    if (profile.bio) storageService.set(storageService.getUserKey("profileBio", activeUserId), profile.bio);
+    if (profile.xp !== undefined) storageService.set(storageService.getUserKey("xp", activeUserId), profile.xp);
+    if (profile.streak !== undefined) storageService.set(storageService.getUserKey("streak", activeUserId), profile.streak);
     return profile;
   }
 };

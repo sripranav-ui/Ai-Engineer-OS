@@ -5,7 +5,7 @@
 // timeline sequences.
 // =======================================================
 
-import storageService from "../storageService";
+import storageService from "../storageService.js";
 
 export const timelineEngine = {
   /** Get timeline milestones for a project */

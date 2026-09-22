@@ -22,13 +22,22 @@ export class CreateProjectTool extends BaseTool {
     return { valid: true, errors: [] };
   }
 
-  async execute(args) {
-    return projectEngine.createProject({
-      title: args.title,
-      description: args.description || "",
-      category: args.category || "AI & Machine Learning",
-      priority: args.priority || "Medium",
-    });
+  async execute(args, context = {}) {
+    const userId = context.userId || context.user?.id;
+    if (!userId) {
+      throw new Error("[CreateProjectTool] Refusing project creation: missing active user identity in execution context.");
+    }
+    const workspaceId = context.workspaceId || "default";
+    return projectEngine.createProject(
+      {
+        title: args.title,
+        description: args.description || "",
+        category: args.category || "AI & Machine Learning",
+        priority: args.priority || "Medium",
+      },
+      workspaceId,
+      userId
+    );
   }
 }
 

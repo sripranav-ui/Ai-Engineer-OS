@@ -18,7 +18,10 @@ export class SearchNotesTool extends BaseTool {
   }
 
   async execute(args) {
-    const raw = storageService.get("knowledge_notes");
+    const userId = storageService.getCurrentUserId();
+    const notesKey = storageService.getUserKey("notes_data_list", userId);
+    const legacyKey = storageService.getUserKey("knowledge_notes", userId);
+    const raw = storageService.get(notesKey) || storageService.get(legacyKey);
     const notes = raw ? JSON.parse(raw) : [];
     const query = (args.query || "").toLowerCase();
 

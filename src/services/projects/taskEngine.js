@@ -5,8 +5,8 @@
 // subtasks, checklists, priorities, and estimates.
 // =======================================================
 
-import storageService from "../storageService";
-import logger from "../../utils/logger";
+import storageService from "../storageService.js";
+import logger from "../../utils/logger.js";
 
 const TASKS_STORAGE_KEY = "pm_tasks_registry";
 

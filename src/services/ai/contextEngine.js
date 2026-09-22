@@ -5,21 +5,21 @@
 // modules to feed the AI prompt engine automatically.
 // =======================================================
 
-import storageService from "../storageService";
-import logger from "../../utils/logger";
+import storageService from "../storageService.js";
+import logger from "../../utils/logger.js";
 
 export const contextEngine = {
   /**
    * Collects global system context snapshot
    */
-  getSystemContext: () => {
+  getSystemContext: (workspaceId = "default", userId = null) => {
     try {
-      const activeWorkspaceId = storageService.get("active_workspace_id", "ai-engineering");
-      const activeWorkspace   = storageService.get("multi_workspaces");
-      const profileName       = storageService.get("profileName", "Developer");
-      const currentDay        = storageService.get("currentDay", 1);
-      const userXp             = storageService.get("userXp", 0);
-      const theme             = storageService.get("theme", "light");
+      const activeUserId = userId || storageService.getCurrentUserId();
+      const activeWorkspaceId = workspaceId || storageService.get("active_workspace_id") || "default";
+      const profileName = storageService.getInitialScopedData("profileName", activeUserId, "Developer");
+      const currentDay = Number(storageService.getInitialScopedData("currentDay", activeUserId, 1)) || 1;
+      const userXp = Number(storageService.getInitialScopedData("xp", activeUserId, 0)) || 0;
+      const theme = storageService.get("theme") || "light";
 
       return {
         timestamp: new Date().toISOString(),
@@ -32,7 +32,7 @@ export const contextEngine = {
         },
         environment: {
           theme,
-          url: window.location.pathname,
+          url: typeof window !== "undefined" ? window.location.pathname : "/",
         },
       };
     } catch (err) {
@@ -45,34 +45,35 @@ export const contextEngine = {
    * Collects domain-specific workspace context
    * @param {string} domain - "dashboard" | "projects" | "learning" | "notes" | "career" | "analytics"
    */
-  getDomainContext: (domain = "dashboard") => {
+  getDomainContext: (domain = "dashboard", workspaceId = "default", userId = null) => {
     try {
+      const activeUserId = userId || storageService.getCurrentUserId();
       switch (domain) {
         case "projects": {
-          const raw = storageService.get("projects_data");
-          const projects = raw ? JSON.parse(raw) : [];
+          const raw = storageService.getInitialScopedData("pm_projects_registry", activeUserId, [], workspaceId);
+          const projects = Array.isArray(raw) ? raw : [];
           return {
             activeProjectsCount: projects.filter((p) => p.status !== "Completed").length,
             recentProjects: projects.slice(0, 3).map((p) => ({ title: p.title, status: p.status, progress: p.progress })),
           };
         }
         case "learning": {
-          const day = storageService.get("currentDay", 1);
+          const day = Number(storageService.getInitialScopedData("currentDay", activeUserId, 1)) || 1;
           return {
             currentDay: day,
             learningTarget: `Day ${day} AI Engineering Module`,
           };
         }
         case "notes": {
-          const raw = storageService.get("knowledge_notes");
-          const notes = raw ? JSON.parse(raw) : [];
+          const raw = storageService.getInitialScopedData("notes_data_list", activeUserId, []);
+          const notes = Array.isArray(raw) ? raw : [];
           return {
             totalNotes: notes.length,
             recentTitles: notes.slice(0, 5).map((n) => n.title),
           };
         }
         case "career": {
-          const targetRole = storageService.get("target_career_role", "AI Specialist");
+          const targetRole = storageService.getInitialScopedData("target_career_role", activeUserId, "AI Specialist", workspaceId);
           return { targetRole };
         }
         default:
@@ -86,9 +87,9 @@ export const contextEngine = {
   /**
    * Compiles full context block string to append to AI prompts
    */
-  compileContextPrompt: (activeDomain = "dashboard") => {
-    const sys = contextEngine.getSystemContext();
-    const domain = contextEngine.getDomainContext(activeDomain);
+  compileContextPrompt: (activeDomain = "dashboard", workspaceId = "default", userId = null) => {
+    const sys = contextEngine.getSystemContext(workspaceId, userId);
+    const domain = contextEngine.getDomainContext(activeDomain, workspaceId, userId);
 
     const parts = [
       `User Profile: ${sys.user?.name || "Developer"} (Level ${sys.user?.level || 1}, Day ${sys.user?.day || 1})`,

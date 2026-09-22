@@ -5,8 +5,8 @@
 // tags, deadlines, favorites, archiving, and workspace isolation.
 // =======================================================
 
-import storageService from "../storageService";
-import logger from "../../utils/logger";
+import storageService from "../storageService.js";
+import logger from "../../utils/logger.js";
 
 const PROJECTS_STORAGE_KEY = "pm_projects_registry";
 
@@ -49,9 +49,14 @@ const DEFAULT_PROJECTS = [
 
 export const projectEngine = {
   /** Get all active projects for workspace */
-  getProjects: (workspaceId = "default") => {
+  getProjects: (workspaceId = "default", userId = null) => {
+    if (!userId) {
+      logger.warn("[ProjectEngine] getProjects called without explicit userId.");
+      return DEFAULT_PROJECTS;
+    }
     try {
-      const raw = storageService.get(`${workspaceId}_${PROJECTS_STORAGE_KEY}`);
+      const key = storageService.getScopedKey(PROJECTS_STORAGE_KEY, userId, workspaceId);
+      const raw = storageService.get(key);
       return raw ? JSON.parse(raw) : DEFAULT_PROJECTS;
     } catch {
       return DEFAULT_PROJECTS;
@@ -59,17 +64,25 @@ export const projectEngine = {
   },
 
   /** Save projects list */
-  saveProjects: (projects, workspaceId = "default") => {
+  saveProjects: (projects, workspaceId = "default", userId = null) => {
+    if (!userId) {
+      throw new Error("[ProjectEngine] Cannot save projects without an explicit userId.");
+    }
     try {
-      storageService.set(`${workspaceId}_${PROJECTS_STORAGE_KEY}`, JSON.stringify(projects));
+      const key = storageService.getScopedKey(PROJECTS_STORAGE_KEY, userId, workspaceId);
+      storageService.set(key, JSON.stringify(projects));
     } catch (err) {
       logger.error("[ProjectEngine] Error saving projects:", err);
+      throw err;
     }
   },
 
   /** Create new project */
-  createProject: (data, workspaceId = "default") => {
-    const list = projectEngine.getProjects(workspaceId);
+  createProject: (data, workspaceId = "default", userId = null) => {
+    if (!userId) {
+      throw new Error("[ProjectEngine] Cannot create project without an explicit userId.");
+    }
+    const list = projectEngine.getProjects(workspaceId, userId);
     const newProj = {
       id: `proj_${Date.now()}`,
       title: data.title || "Untitled Project",
@@ -87,24 +100,30 @@ export const projectEngine = {
     };
 
     const updated = [newProj, ...list];
-    projectEngine.saveProjects(updated, workspaceId);
+    projectEngine.saveProjects(updated, workspaceId, userId);
     logger.info(`[ProjectEngine] Created project "${newProj.title}".`);
     return newProj;
   },
 
   /** Toggle favorite status */
-  toggleFavorite: (projectId, workspaceId = "default") => {
-    const list = projectEngine.getProjects(workspaceId);
+  toggleFavorite: (projectId, workspaceId = "default", userId = null) => {
+    if (!userId) {
+      throw new Error("[ProjectEngine] Cannot toggle favorite without an explicit userId.");
+    }
+    const list = projectEngine.getProjects(workspaceId, userId);
     const updated = list.map((p) => (p.id === projectId ? { ...p, favorite: !p.favorite } : p));
-    projectEngine.saveProjects(updated, workspaceId);
+    projectEngine.saveProjects(updated, workspaceId, userId);
     return updated;
   },
 
   /** Archive or restore project */
-  toggleArchive: (projectId, workspaceId = "default") => {
-    const list = projectEngine.getProjects(workspaceId);
+  toggleArchive: (projectId, workspaceId = "default", userId = null) => {
+    if (!userId) {
+      throw new Error("[ProjectEngine] Cannot toggle archive without an explicit userId.");
+    }
+    const list = projectEngine.getProjects(workspaceId, userId);
     const updated = list.map((p) => (p.id === projectId ? { ...p, archived: !p.archived, status: !p.archived ? "Archived" : "Active" } : p));
-    projectEngine.saveProjects(updated, workspaceId);
+    projectEngine.saveProjects(updated, workspaceId, userId);
     return updated;
   },
 };

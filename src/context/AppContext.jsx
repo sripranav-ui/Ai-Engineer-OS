@@ -4,83 +4,21 @@
 // High-Resilience LocalStorage Guarding
 // =======================================================
 
-import { createContext, useState, useEffect, useMemo } from "react";
+import { createContext, useState, useEffect, useMemo, useContext, useRef } from "react";
+import { AuthContext } from "./AuthContext";
+import storageService from "../services/storageService";
 import roadmapData from "../data/roadmap";
 import projectsData from "../data/projects";
 
 const AppContext = createContext();
 
 export function AppProvider({ children }) {
-  // Profile Name & Bio State
-  const [profileName, setProfileName] = useState(() => {
-    return localStorage.getItem("profileName") || "Pranav";
-  });
-  const [profileBio, setProfileBio] = useState(() => {
-    return localStorage.getItem("profileBio") || "AI Engineering student";
-  });
+  const { user } = useContext(AuthContext) || {};
+  const userId = user?.id || "guest";
 
-  useEffect(() => {
-    localStorage.setItem("profileName", profileName || "Pranav");
-  }, [profileName]);
+  const hydratedUserIdRef = useRef(userId);
+  const isHydratedRef = useRef(true);
 
-  useEffect(() => {
-    localStorage.setItem("profileBio", profileBio || "AI Engineering student");
-  }, [profileBio]);
-
-  // Gamified User Progression (XP, Level, Study Stats)
-  const [xp, setXp] = useState(() => {
-    const savedXp = localStorage.getItem("xp");
-    return savedXp ? Number(savedXp) || 120 : 120;
-  });
-
-  const [studyTimeToday, setStudyTimeToday] = useState(() => {
-    const savedTime = localStorage.getItem("studyTimeToday");
-    return savedTime ? Number(savedTime) || 35 : 35;
-  });
-
-  const [streak, setStreak] = useState(() => {
-    const savedStreak = localStorage.getItem("streak");
-    return savedStreak ? Number(savedStreak) || 3 : 3;
-  });
-
-  const level = Math.floor(xp / 500) + 1;
-  const xpInCurrentLevel = xp % 500;
-  const nextLevelXp = 500;
-
-  useEffect(() => {
-    localStorage.setItem("xp", xp);
-  }, [xp]);
-
-  useEffect(() => {
-    localStorage.setItem("studyTimeToday", studyTimeToday);
-  }, [studyTimeToday]);
-
-  useEffect(() => {
-    localStorage.setItem("streak", streak);
-  }, [streak]);
-
-  const awardXP = (points) => {
-    setXp((prevXp) => Math.max(0, prevXp + (Number(points) || 0)));
-  };
-
-  const [currentDay, setCurrentDay] = useState(() => {
-    const savedDay = localStorage.getItem("currentDay");
-    return savedDay ? Number(savedDay) || 1 : 1;
-  });
-
-  // Guarded Roadmap State
-  const [roadmap, setRoadmap] = useState(() => {
-    try {
-      const savedRoadmap = localStorage.getItem("roadmap");
-      const parsed = savedRoadmap ? JSON.parse(savedRoadmap) : null;
-      const list = Array.isArray(parsed) && parsed.length > 0 ? parsed : (roadmapData || []);
-      return list.map((item) => ({ ...item, unlocked: true }));
-    } catch {
-      return (roadmapData || []).map((item) => ({ ...item, unlocked: true }));
-    }
-  });
-
-  // Guarded Projects State
   const ENRICH_PROJECTS = (list) => {
     const safeList = Array.isArray(list) && list.length > 0 ? list : (projectsData || []);
     return safeList.map((p) => {
@@ -126,61 +64,120 @@ export function AppProvider({ children }) {
     }).filter(Boolean);
   };
 
-  const [projects, setProjects] = useState(() => {
-    try {
-      const savedProjects = localStorage.getItem("projects");
-      const parsed = savedProjects ? JSON.parse(savedProjects) : null;
-      const rawList = Array.isArray(parsed) && parsed.length > 0 ? parsed : projectsData;
-      return ENRICH_PROJECTS(rawList);
-    } catch {
-      return ENRICH_PROJECTS(projectsData);
+  // State Container with explicit owner userId stamp
+  const [appState, setAppState] = useState(() => {
+    const rawRoadmap = storageService.getInitialScopedData("roadmap", userId, roadmapData || []);
+    const rawProjects = storageService.getInitialScopedData("projects", userId, projectsData);
+    return {
+      userId,
+      profileName: storageService.getInitialScopedData("profileName", userId, user?.name || "Pranav"),
+      profileBio: storageService.getInitialScopedData("profileBio", userId, user?.bio || "AI Engineering student"),
+      xp: Number(storageService.getInitialScopedData("xp", userId, 120)) || 120,
+      studyTimeToday: Number(storageService.getInitialScopedData("studyTimeToday", userId, 35)) || 35,
+      streak: Number(storageService.getInitialScopedData("streak", userId, 3)) || 3,
+      currentDay: Number(storageService.getInitialScopedData("currentDay", userId, 1)) || 1,
+      roadmap: (Array.isArray(rawRoadmap) && rawRoadmap.length > 0 ? rawRoadmap : roadmapData).map((item) => ({ ...item, unlocked: true })),
+      projects: ENRICH_PROJECTS(rawProjects),
+      certificates: Number(storageService.getInitialScopedData("certificates", userId, 0)) || 0,
+    };
+  });
+
+  // Re-hydrate when active user identity changes
+  useEffect(() => {
+    const rawRoadmap = storageService.getInitialScopedData("roadmap", userId, roadmapData || []);
+    const rawProjects = storageService.getInitialScopedData("projects", userId, projectsData);
+    setAppState({
+      userId,
+      profileName: storageService.getInitialScopedData("profileName", userId, user?.name || "Pranav"),
+      profileBio: storageService.getInitialScopedData("profileBio", userId, user?.bio || "AI Engineering student"),
+      xp: Number(storageService.getInitialScopedData("xp", userId, 120)) || 120,
+      studyTimeToday: Number(storageService.getInitialScopedData("studyTimeToday", userId, 35)) || 35,
+      streak: Number(storageService.getInitialScopedData("streak", userId, 3)) || 3,
+      currentDay: Number(storageService.getInitialScopedData("currentDay", userId, 1)) || 1,
+      roadmap: (Array.isArray(rawRoadmap) && rawRoadmap.length > 0 ? rawRoadmap : roadmapData).map((item) => ({ ...item, unlocked: true })),
+      projects: ENRICH_PROJECTS(rawProjects),
+      certificates: Number(storageService.getInitialScopedData("certificates", userId, 0)) || 0,
+    });
+  }, [userId, user?.name, user?.bio]);
+
+  // Persist user-scoped state updates ONLY when in-memory state matches active userId
+  useEffect(() => {
+    if (appState.userId !== userId) return;
+    storageService.set(storageService.getUserKey("profileName", userId), appState.profileName);
+    storageService.set(storageService.getUserKey("profileBio", userId), appState.profileBio);
+    storageService.set(storageService.getUserKey("xp", userId), appState.xp);
+    storageService.set(storageService.getUserKey("studyTimeToday", userId), appState.studyTimeToday);
+    storageService.set(storageService.getUserKey("streak", userId), appState.streak);
+    storageService.set(storageService.getUserKey("currentDay", userId), appState.currentDay);
+    if (Array.isArray(appState.roadmap)) {
+      storageService.set(storageService.getUserKey("roadmap", userId), JSON.stringify(appState.roadmap));
     }
-  });
+    if (Array.isArray(appState.projects)) {
+      storageService.set(storageService.getUserKey("projects", userId), JSON.stringify(appState.projects));
+    }
+    storageService.set(storageService.getUserKey("certificates", userId), appState.certificates);
+  }, [appState, userId]);
 
-  const [certificates, setCertificates] = useState(() => {
-    const savedCertificates = localStorage.getItem("certificates");
-    return savedCertificates ? Number(savedCertificates) || 0 : 0;
-  });
+  const isOwner = appState.userId === userId;
+  const profileName = isOwner ? appState.profileName : (user?.name || "Pranav");
+  const profileBio = isOwner ? appState.profileBio : (user?.bio || "AI Engineering student");
+  const xp = isOwner ? appState.xp : 120;
+  const studyTimeToday = isOwner ? appState.studyTimeToday : 35;
+  const streak = isOwner ? appState.streak : 3;
+  const currentDay = isOwner ? appState.currentDay : 1;
+  const roadmap = isOwner ? appState.roadmap : roadmapData;
+  const projects = isOwner ? appState.projects : [];
+  const certificates = isOwner ? appState.certificates : 0;
 
+  const level = Math.floor(xp / 500) + 1;
+  const xpInCurrentLevel = xp % 500;
+  const nextLevelXp = 500;
   const totalDays = 365;
 
-  useEffect(() => {
-    localStorage.setItem("currentDay", currentDay);
-  }, [currentDay]);
+  const setProfileName = (val) => setAppState((prev) => ({ ...prev, userId, profileName: typeof val === "function" ? val(prev.profileName) : val }));
+  const setProfileBio = (val) => setAppState((prev) => ({ ...prev, userId, profileBio: typeof val === "function" ? val(prev.profileBio) : val }));
+  const setStudyTimeToday = (val) => setAppState((prev) => ({ ...prev, userId, studyTimeToday: typeof val === "function" ? val(prev.studyTimeToday) : val }));
+  const setStreak = (val) => setAppState((prev) => ({ ...prev, userId, streak: typeof val === "function" ? val(prev.streak) : val }));
+  const setCurrentDay = (val) => setAppState((prev) => ({ ...prev, userId, currentDay: typeof val === "function" ? val(prev.currentDay) : val }));
+  const setRoadmap = (val) => setAppState((prev) => ({ ...prev, userId, roadmap: typeof val === "function" ? val(prev.roadmap) : val }));
+  const setProjects = (val) => setAppState((prev) => ({ ...prev, userId, projects: typeof val === "function" ? val(prev.projects) : val }));
+  const setCertificates = (val) => setAppState((prev) => ({ ...prev, userId, certificates: typeof val === "function" ? val(prev.certificates) : val }));
 
-  useEffect(() => {
-    if (Array.isArray(roadmap)) {
-      localStorage.setItem("roadmap", JSON.stringify(roadmap));
+  const awardXP = (amount) => {
+    if (typeof amount === "number" && amount > 0) {
+      setAppState((prev) => ({ ...prev, userId, xp: prev.xp + amount }));
     }
-  }, [roadmap]);
-
-  useEffect(() => {
-    if (Array.isArray(projects)) {
-      localStorage.setItem("projects", JSON.stringify(projects));
-    }
-  }, [projects]);
+  };
 
   const toggleDayCompletion = (dayId) => {
-    setRoadmap((prevRoadmap) => {
-      const list = Array.isArray(prevRoadmap) ? prevRoadmap : [];
-      return list.map((item) => {
+    setAppState((prev) => {
+      const list = Array.isArray(prev.roadmap) ? prev.roadmap : [];
+      let awarded = false;
+      const updated = list.map((item) => {
         if (item.id === dayId) {
           const nextCompletedState = !item.completed;
-          if (nextCompletedState) awardXP(50);
+          if (nextCompletedState) awarded = true;
           return { ...item, completed: nextCompletedState };
         }
         return item;
       });
+      return {
+        ...prev,
+        userId,
+        xp: awarded ? prev.xp + 50 : prev.xp,
+        roadmap: updated,
+      };
     });
   };
 
   const toggleProjectCompletion = (projectId) => {
-    setProjects((prevProjects) => {
-      const list = Array.isArray(prevProjects) ? prevProjects : [];
-      return list.map((project) => {
+    setAppState((prev) => {
+      const list = Array.isArray(prev.projects) ? prev.projects : [];
+      let awarded = false;
+      const updated = list.map((project) => {
         if (project.id === projectId) {
           const nextCompleted = !project.completed;
-          if (nextCompleted) awardXP(150);
+          if (nextCompleted) awarded = true;
           return {
             ...project,
             completed: nextCompleted,
@@ -190,6 +187,12 @@ export function AppProvider({ children }) {
         }
         return project;
       });
+      return {
+        ...prev,
+        userId,
+        xp: awarded ? prev.xp + 150 : prev.xp,
+        projects: updated,
+      };
     });
   };
 

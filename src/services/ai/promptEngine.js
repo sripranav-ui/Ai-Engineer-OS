@@ -65,12 +65,12 @@ export const promptEngine = {
   /**
    * Builds complete system prompt including agent role & app context
    */
-  buildSystemPrompt: (roleId = "mentor", includeContext = true) => {
+  buildSystemPrompt: (roleId = "mentor", includeContext = true, workspaceId = "default", userId = null) => {
     const role = Object.values(AGENT_ROLES).find((r) => r.id === roleId) || AGENT_ROLES.MENTOR;
     let system = role.systemPrompt;
 
     if (includeContext) {
-      const contextStr = contextEngine.compileContextPrompt();
+      const contextStr = contextEngine.compileContextPrompt("dashboard", workspaceId, userId);
       system += `\n\n--- CURRENT WORKSPACE CONTEXT ---\n${contextStr}\n--- END CONTEXT ---`;
     }
 

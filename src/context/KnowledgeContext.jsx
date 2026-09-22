@@ -1,13 +1,8 @@
-import React, { createContext, useState, useEffect, useContext } from "react";
+import React, { createContext, useState, useEffect, useContext, useRef } from "react";
 import { AuthContext } from "./AuthContext";
 import authorization from "../services/auth/authorization.js";
 import { PERMISSIONS } from "../services/auth/permissionDefinitions.js";
-
-// =======================================================
-// KnowledgeContext.jsx
-// Context provider managing flashcards, cheat sheets, and summaries
-// Guarded state initialization for zero render crashes
-// =======================================================
+import storageService from "../services/storageService.js";
 
 export const KnowledgeContext = createContext();
 
@@ -24,41 +19,47 @@ const SEED_SUMMARIES = [
 
 export function KnowledgeProvider({ children }) {
   const { user } = useContext(AuthContext) || {};
+  const userId = user?.id || "guest";
 
-  // Flashcards state with Array validation
-  const [flashcards, setFlashcards] = useState(() => {
-    try {
-      const saved = localStorage.getItem("knowledge_flashcards");
-      const parsed = saved ? JSON.parse(saved) : null;
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : SEED_FLASHCARDS;
-    } catch {
-      return SEED_FLASHCARDS;
-    }
-  });
+  // Flashcards state with owner userId stamp
+  const [flashcardsState, setFlashcardsState] = useState(() => ({
+    userId,
+    data: storageService.getInitialScopedData("knowledge_flashcards", userId, SEED_FLASHCARDS),
+  }));
 
-  // AI Summaries state with Array validation
-  const [summaries, setSummaries] = useState(() => {
-    try {
-      const saved = localStorage.getItem("knowledge_summaries");
-      const parsed = saved ? JSON.parse(saved) : null;
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : SEED_SUMMARIES;
-    } catch {
-      return SEED_SUMMARIES;
-    }
-  });
+  // AI Summaries state with owner userId stamp
+  const [summariesState, setSummariesState] = useState(() => ({
+    userId,
+    data: storageService.getInitialScopedData("knowledge_summaries", userId, SEED_SUMMARIES),
+  }));
 
-  // Sync to local storage
+  // Re-hydrate when active user ID changes
   useEffect(() => {
-    if (Array.isArray(flashcards)) {
-      localStorage.setItem("knowledge_flashcards", JSON.stringify(flashcards));
+    const freshCards = storageService.getInitialScopedData("knowledge_flashcards", userId, SEED_FLASHCARDS);
+    const freshSummaries = storageService.getInitialScopedData("knowledge_summaries", userId, SEED_SUMMARIES);
+    setFlashcardsState({ userId, data: freshCards });
+    setSummariesState({ userId, data: freshSummaries });
+  }, [userId]);
+
+  // Sync to user-scoped local storage ONLY when state matches active user
+  useEffect(() => {
+    if (flashcardsState.userId !== userId) return;
+    if (Array.isArray(flashcardsState.data)) {
+      const key = storageService.getUserKey("knowledge_flashcards", userId);
+      storageService.set(key, JSON.stringify(flashcardsState.data));
     }
-  }, [flashcards]);
+  }, [flashcardsState, userId]);
 
   useEffect(() => {
-    if (Array.isArray(summaries)) {
-      localStorage.setItem("knowledge_summaries", JSON.stringify(summaries));
+    if (summariesState.userId !== userId) return;
+    if (Array.isArray(summariesState.data)) {
+      const key = storageService.getUserKey("knowledge_summaries", userId);
+      storageService.set(key, JSON.stringify(summariesState.data));
     }
-  }, [summaries]);
+  }, [summariesState, userId]);
+
+  const flashcards = flashcardsState.userId === userId ? flashcardsState.data : SEED_FLASHCARDS;
+  const summaries = summariesState.userId === userId ? summariesState.data : SEED_SUMMARIES;
 
   // Flashcards actions
   const addFlashcard = (q, a, category) => {
@@ -72,17 +73,21 @@ export function KnowledgeProvider({ children }) {
       category,
       difficulty: "Medium",
       lastReviewed: null,
-      nextReviewDue: new Date().toISOString().split("T")[0]
+      nextReviewDue: new Date().toISOString().split("T")[0],
     };
-    setFlashcards((prev) => [newCard, ...(Array.isArray(prev) ? prev : [])]);
+    setFlashcardsState((prev) => ({
+      userId,
+      data: [newCard, ...(Array.isArray(prev?.data) ? prev.data : [])],
+    }));
   };
 
   const reviewFlashcard = (id, score) => {
     if (!user || !authorization.hasPermission(user, PERMISSIONS.MANAGE_KNOWLEDGE)) {
       return;
     }
-    setFlashcards((prev) =>
-      (Array.isArray(prev) ? prev : []).map((c) => {
+    setFlashcardsState((prev) => ({
+      userId,
+      data: (Array.isArray(prev?.data) ? prev.data : []).map((c) => {
         if (c && c.id === id) {
           let addDays = 1;
           if (score === "Easy") addDays = 7;
@@ -95,12 +100,12 @@ export function KnowledgeProvider({ children }) {
             ...c,
             difficulty: score,
             lastReviewed: new Date().toISOString().split("T")[0],
-            nextReviewDue: next.toISOString().split("T")[0]
+            nextReviewDue: next.toISOString().split("T")[0],
           };
         }
         return c;
-      })
-    );
+      }),
+    }));
   };
 
   // Summaries actions
@@ -108,9 +113,10 @@ export function KnowledgeProvider({ children }) {
     if (!user || !authorization.hasPermission(user, PERMISSIONS.MANAGE_KNOWLEDGE)) {
       return;
     }
-    setSummaries((prev) =>
-      (Array.isArray(prev) ? prev : []).map((s) => (s && s.id === id ? { ...s, favorite: !s.favorite } : s))
-    );
+    setSummariesState((prev) => ({
+      userId,
+      data: (Array.isArray(prev?.data) ? prev.data : []).map((s) => (s && s.id === id ? { ...s, favorite: !s.favorite } : s)),
+    }));
   };
 
   const addSummary = (title, topic, content, tagsStr) => {
@@ -124,9 +130,12 @@ export function KnowledgeProvider({ children }) {
       tags: String(tagsStr || "").split(",").map((t) => t.trim()).filter(Boolean),
       content,
       readingTime: `${Math.max(1, Math.round((content || "").split(" ").length / 150))} min`,
-      favorite: false
+      favorite: false,
     };
-    setSummaries((prev) => [newSummary, ...(Array.isArray(prev) ? prev : [])]);
+    setSummariesState((prev) => ({
+      userId,
+      data: [newSummary, ...(Array.isArray(prev?.data) ? prev.data : [])],
+    }));
   };
 
   return (

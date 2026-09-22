@@ -1,4 +1,6 @@
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState, useEffect, useContext, useRef } from "react";
+import { AuthContext } from "./AuthContext";
+import storageService from "../services/storageService.js";
 
 // =======================================================
 // InterviewContext.jsx
@@ -8,83 +10,104 @@ import React, { createContext, useState, useEffect } from "react";
 
 export const InterviewContext = createContext();
 
+const INITIAL_REVISION_NOTES = "## My Interview Cheat-sheet\nWrite Python built-ins, complex space-times, ML equations, and behavioral notes here.";
+
 const INITIAL_MOCK_SESSIONS = [
   { id: 1, score: 85, category: "Core ML & Python", feedback: "Strong coding logic and Python details, but review backprop mathematics.", date: "2026-07-16" }
 ];
 
 export function InterviewProvider({ children }) {
-  // --- 1. Completed Questions ---
-  const [completedQuestions, setCompletedQuestions] = useState(() => {
-    try {
-      const saved = localStorage.getItem("interview_completed_ids");
-      const parsed = saved ? JSON.parse(saved) : null;
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+  const { user } = useContext(AuthContext) || {};
+  const userId = user?.id || "guest";
+
+  // --- 1. Completed Questions State (stamped with owner userId) ---
+  const [completedState, setCompletedState] = useState(() => ({
+    userId,
+    data: storageService.getInitialScopedData("interview_completed_ids", userId, []),
+  }));
+
+  // --- 2. Bookmarked Questions State (stamped with owner userId) ---
+  const [bookmarkedState, setBookmarkedState] = useState(() => ({
+    userId,
+    data: storageService.getInitialScopedData("interview_bookmarked_ids", userId, []),
+  }));
+
+  // --- 3. Revision Notes State (stamped with owner userId) ---
+  const [revisionNotesState, setRevisionNotesState] = useState(() => ({
+    userId,
+    data: storageService.getInitialScopedData("interview_revision_notes", userId, INITIAL_REVISION_NOTES),
+  }));
+
+  // --- 4. Mock Sessions History State (stamped with owner userId) ---
+  const [mockInterviewsState, setMockInterviewsState] = useState(() => ({
+    userId,
+    data: storageService.getInitialScopedData("interview_mock_sessions", userId, INITIAL_MOCK_SESSIONS),
+  }));
+
+  // --- Rehydrate when active user ID changes ---
+  useEffect(() => {
+    setCompletedState({ userId, data: storageService.getInitialScopedData("interview_completed_ids", userId, []) });
+    setBookmarkedState({ userId, data: storageService.getInitialScopedData("interview_bookmarked_ids", userId, []) });
+    setRevisionNotesState({ userId, data: storageService.getInitialScopedData("interview_revision_notes", userId, INITIAL_REVISION_NOTES) });
+    setMockInterviewsState({ userId, data: storageService.getInitialScopedData("interview_mock_sessions", userId, INITIAL_MOCK_SESSIONS) });
+  }, [userId]);
+
+  // --- Sync state to user-scoped local storage ONLY when state matches active user ---
+  useEffect(() => {
+    if (completedState.userId !== userId) return;
+    const key = storageService.getUserKey("interview_completed_ids", userId);
+    storageService.set(key, JSON.stringify(completedState.data));
+  }, [completedState, userId]);
 
   useEffect(() => {
-    localStorage.setItem("interview_completed_ids", JSON.stringify(completedQuestions));
-  }, [completedQuestions]);
-
-  // --- 2. Bookmarked Questions ---
-  const [bookmarkedQuestions, setBookmarkedQuestions] = useState(() => {
-    try {
-      const saved = localStorage.getItem("interview_bookmarked_ids");
-      const parsed = saved ? JSON.parse(saved) : null;
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+    if (bookmarkedState.userId !== userId) return;
+    const key = storageService.getUserKey("interview_bookmarked_ids", userId);
+    storageService.set(key, JSON.stringify(bookmarkedState.data));
+  }, [bookmarkedState, userId]);
 
   useEffect(() => {
-    localStorage.setItem("interview_bookmarked_ids", JSON.stringify(bookmarkedQuestions));
-  }, [bookmarkedQuestions]);
-
-  // --- 3. Revision Notes ---
-  const [revisionNotes, setRevisionNotes] = useState(() => {
-    const saved = localStorage.getItem("interview_revision_notes");
-    return saved || "## My Interview Cheat-sheet\nWrite Python built-ins, complex space-times, ML equations, and behavioral notes here.";
-  });
+    if (revisionNotesState.userId !== userId) return;
+    const key = storageService.getUserKey("interview_revision_notes", userId);
+    storageService.set(key, typeof revisionNotesState.data === "string" ? revisionNotesState.data : JSON.stringify(revisionNotesState.data));
+  }, [revisionNotesState, userId]);
 
   useEffect(() => {
-    localStorage.setItem("interview_revision_notes", revisionNotes);
-  }, [revisionNotes]);
+    if (mockInterviewsState.userId !== userId) return;
+    const key = storageService.getUserKey("interview_mock_sessions", userId);
+    storageService.set(key, JSON.stringify(mockInterviewsState.data));
+  }, [mockInterviewsState, userId]);
 
-  // --- 4. Mock Sessions History ---
-  const [mockInterviews, setMockInterviews] = useState(() => {
-    try {
-      const saved = localStorage.getItem("interview_mock_sessions");
-      const parsed = saved ? JSON.parse(saved) : null;
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_MOCK_SESSIONS;
-    } catch {
-      return INITIAL_MOCK_SESSIONS;
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem("interview_mock_sessions", JSON.stringify(mockInterviews));
-  }, [mockInterviews]);
+  const completedQuestions = completedState.userId === userId ? completedState.data : [];
+  const bookmarkedQuestions = bookmarkedState.userId === userId ? bookmarkedState.data : [];
+  const revisionNotes = revisionNotesState.userId === userId ? revisionNotesState.data : INITIAL_REVISION_NOTES;
+  const mockInterviews = mockInterviewsState.userId === userId ? mockInterviewsState.data : INITIAL_MOCK_SESSIONS;
 
   // --- Actions ---
   const toggleBookmark = (id) => {
-    setBookmarkedQuestions((prev) => {
-      const list = Array.isArray(prev) ? prev : [];
-      return list.includes(id) ? list.filter((item) => item !== id) : [...list, id];
+    setBookmarkedState((prev) => {
+      const list = Array.isArray(prev?.data) ? prev.data : [];
+      return {
+        userId,
+        data: list.includes(id) ? list.filter((item) => item !== id) : [...list, id],
+      };
     });
   };
 
   const toggleCompleted = (id) => {
-    setCompletedQuestions((prev) => {
-      const list = Array.isArray(prev) ? prev : [];
-      return list.includes(id) ? list.filter((item) => item !== id) : [...list, id];
+    setCompletedState((prev) => {
+      const list = Array.isArray(prev?.data) ? prev.data : [];
+      return {
+        userId,
+        data: list.includes(id) ? list.filter((item) => item !== id) : [...list, id],
+      };
     });
   };
 
   const saveRevisionNotes = (notes) => {
-    setRevisionNotes(notes || "");
+    setRevisionNotesState({
+      userId,
+      data: notes || "",
+    });
   };
 
   const addMockSession = (score, category, feedback) => {
@@ -95,7 +118,10 @@ export function InterviewProvider({ children }) {
       feedback,
       date: new Date().toISOString().split("T")[0],
     };
-    setMockInterviews((prev) => [newSession, ...(Array.isArray(prev) ? prev : [])]);
+    setMockInterviewsState((prev) => ({
+      userId,
+      data: [newSession, ...(Array.isArray(prev?.data) ? prev.data : [])],
+    }));
   };
 
   const value = {

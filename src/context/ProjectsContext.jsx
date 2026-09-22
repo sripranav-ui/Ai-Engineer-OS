@@ -17,18 +17,19 @@ export const ProjectsContext = createContext(null);
 export function ProjectsProvider({ children }) {
   const { activeWorkspaceId } = useContext(WorkspaceManagerContext);
   const { user } = useContext(AuthContext) || {};
+  const userId = user?.id || "usr_dev_user";
   const [projects, setProjects] = useState([]);
   const [activeProjectId, setActiveProjectId] = useState(null);
   const [tasks, setTasks] = useState([]);
 
-  // Load projects list when workspace changes
+  // Load projects list when workspace or user changes
   useEffect(() => {
-    const list = projectEngine.getProjects(activeWorkspaceId);
+    const list = projectEngine.getProjects(activeWorkspaceId, userId);
     setProjects(list);
     if (list.length > 0 && !activeProjectId) {
       setActiveProjectId(list[0].id);
     }
-  }, [activeWorkspaceId, activeProjectId]);
+  }, [activeWorkspaceId, userId, activeProjectId]);
 
   // Load tasks when active project changes
   useEffect(() => {
@@ -48,14 +49,14 @@ export function ProjectsProvider({ children }) {
       if (!user || !authorization.hasPermission(user, PERMISSIONS.CREATE_PROJECT)) {
         return null;
       }
-      const newProj = projectEngine.createProject(data, activeWorkspaceId);
-      const updated = projectEngine.getProjects(activeWorkspaceId);
+      const newProj = projectEngine.createProject(data, activeWorkspaceId, userId);
+      const updated = projectEngine.getProjects(activeWorkspaceId, userId);
       setProjects(updated);
       setActiveProjectId(newProj.id);
       activityEngine.logEvent(newProj.id, "PROJECT_CREATED", `Created project "${newProj.title}"`);
       return newProj;
     },
-    [activeWorkspaceId, user]
+    [activeWorkspaceId, userId, user]
   );
 
   const createFromTemplate = useCallback(
@@ -64,13 +65,13 @@ export function ProjectsProvider({ children }) {
         return null;
       }
       const newProj = templateEngine.createFromTemplate(templateId, customTitle, activeWorkspaceId);
-      const updated = projectEngine.getProjects(activeWorkspaceId);
+      const updated = projectEngine.getProjects(activeWorkspaceId, userId);
       setProjects(updated);
       setActiveProjectId(newProj.id);
       activityEngine.logEvent(newProj.id, "PROJECT_CREATED", `Created project "${newProj.title}" from template`);
       return newProj;
     },
-    [activeWorkspaceId, user]
+    [activeWorkspaceId, userId, user]
   );
 
   // Task CRUD & Kanban operations

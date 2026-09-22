@@ -5,10 +5,10 @@
 // tasks, milestones, and documentation templates.
 // =======================================================
 
-import projectEngine from "./projectEngine";
-import taskEngine from "./taskEngine";
-import docEngine from "./docEngine";
-import timelineEngine from "./timelineEngine";
+import projectEngine from "./projectEngine.js";
+import taskEngine from "./taskEngine.js";
+import docEngine from "./docEngine.js";
+import timelineEngine from "./timelineEngine.js";
 
 export const PROJECT_TEMPLATES = [
   {
@@ -47,7 +47,10 @@ export const templateEngine = {
   getTemplates: () => PROJECT_TEMPLATES,
 
   /** Create a full project from a template */
-  createFromTemplate: (templateId, customTitle, workspaceId = "default") => {
+  createFromTemplate: (templateId, customTitle, workspaceId = "default", userId = null) => {
+    if (!userId) {
+      throw new Error("[TemplateEngine] Cannot create project from template without an explicit userId.");
+    }
     const tpl = PROJECT_TEMPLATES.find((t) => t.id === templateId) || PROJECT_TEMPLATES[0];
 
     // 1. Create project entity
@@ -58,7 +61,8 @@ export const templateEngine = {
         category: tpl.category,
         priority: "High",
       },
-      workspaceId
+      workspaceId,
+      userId
     );
 
     // 2. Instantiate tasks

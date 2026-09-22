@@ -1,5 +1,7 @@
-import React, { createContext, useState, useEffect, useContext, useMemo, useCallback } from "react";
+import React, { createContext, useState, useEffect, useContext, useMemo, useCallback, useRef } from "react";
 import AppContext from "./AppContext";
+import { AuthContext } from "./AuthContext";
+import storageService from "../services/storageService.js";
 
 // =======================================================
 // GamificationContext.jsx
@@ -28,6 +30,12 @@ const DAILY_REWARDS_CONFIG = [
 ];
 
 export function GamificationProvider({ children }) {
+  const { user } = useContext(AuthContext) || {};
+  const userId = user?.id || "guest";
+
+  const hydratedUserIdRef = useRef(userId);
+  const isHydratedRef = useRef(true);
+
   const {
     xp,
     awardXP,
@@ -38,33 +46,53 @@ export function GamificationProvider({ children }) {
     profileName,
   } = useContext(AppContext);
 
-  // --- 1. Achievements State ---
-  const [achievements, setAchievements] = useState(() => {
-    const saved = localStorage.getItem("gamify_achievements");
-    return saved ? JSON.parse(saved) : INITIAL_ACHIEVEMENTS;
-  });
+  // --- 1. Achievements State (stamped with owner userId) ---
+  const [achievementsState, setAchievementsState] = useState(() => ({
+    userId,
+    data: storageService.getInitialScopedData("gamify_achievements", userId, INITIAL_ACHIEVEMENTS),
+  }));
+
+  // --- 2. Daily Rewards State (stamped with owner userId) ---
+  const [dailyRewardStreakState, setDailyRewardStreakState] = useState(() => ({
+    userId,
+    data: Number(storageService.getInitialScopedData("daily_reward_streak", userId, 1)) || 1,
+  }));
+
+  const [lastClaimDateState, setLastClaimDateState] = useState(() => ({
+    userId,
+    data: storageService.getInitialScopedData("last_claim_date", userId, ""),
+  }));
+
+  // Re-hydrate when active user identity changes
+  useEffect(() => {
+    setAchievementsState({ userId, data: storageService.getInitialScopedData("gamify_achievements", userId, INITIAL_ACHIEVEMENTS) });
+    setDailyRewardStreakState({ userId, data: Number(storageService.getInitialScopedData("daily_reward_streak", userId, 1)) || 1 });
+    setLastClaimDateState({ userId, data: storageService.getInitialScopedData("last_claim_date", userId, "") });
+  }, [userId]);
+
+  // Sync to user-scoped storage ONLY when state matches active userId
+  useEffect(() => {
+    if (achievementsState.userId !== userId) return;
+    const key = storageService.getUserKey("gamify_achievements", userId);
+    storageService.set(key, JSON.stringify(achievementsState.data));
+  }, [achievementsState, userId]);
 
   useEffect(() => {
-    localStorage.setItem("gamify_achievements", JSON.stringify(achievements));
-  }, [achievements]);
-
-  // --- 2. Daily Rewards State ---
-  const [dailyRewardStreak, setDailyRewardStreak] = useState(() => {
-    const saved = localStorage.getItem("daily_reward_streak");
-    return saved ? Number(saved) : 1;
-  });
-
-  const [lastClaimDate, setLastClaimDate] = useState(() => {
-    return localStorage.getItem("last_claim_date") || "";
-  });
+    if (dailyRewardStreakState.userId !== userId) return;
+    const key = storageService.getUserKey("daily_reward_streak", userId);
+    storageService.set(key, dailyRewardStreakState.data);
+  }, [dailyRewardStreakState, userId]);
 
   useEffect(() => {
-    localStorage.setItem("daily_reward_streak", dailyRewardStreak);
-  }, [dailyRewardStreak]);
+    if (lastClaimDateState.userId !== userId) return;
+    const key = storageService.getUserKey("last_claim_date", userId);
+    storageService.set(key, lastClaimDateState.data);
+  }, [lastClaimDateState, userId]);
 
-  useEffect(() => {
-    localStorage.setItem("last_claim_date", lastClaimDate);
-  }, [lastClaimDate]);
+  const achievements = achievementsState.userId === userId ? achievementsState.data : INITIAL_ACHIEVEMENTS;
+  const dailyRewardStreak = dailyRewardStreakState.userId === userId ? dailyRewardStreakState.data : 1;
+  const lastClaimDate = lastClaimDateState.userId === userId ? lastClaimDateState.data : "";
+
 
   // Determine if claimed today
   const dailyRewardClaimed = useMemo(() => {
@@ -120,17 +148,19 @@ export function GamificationProvider({ children }) {
 
   // Unlock achievement helper
   const unlockAchievement = useCallback((id) => {
-    setAchievements((prev) =>
-      prev.map((ach) => {
+    setAchievementsState((prev) => {
+      const list = Array.isArray(prev?.data) ? prev.data : INITIAL_ACHIEVEMENTS;
+      const updated = list.map((ach) => {
         if (ach.id === id && !ach.unlocked) {
           awardXP(ach.xpReward);
           setActivePopup(ach); // Trigger popup
           return { ...ach, unlocked: true };
         }
         return ach;
-      })
-    );
-  }, [awardXP]);
+      });
+      return { userId, data: updated };
+    });
+  }, [awardXP, userId]);
 
   // --- 5. Dynamic Achievement Checklist Checks ---
   useEffect(() => {
@@ -171,10 +201,13 @@ export function GamificationProvider({ children }) {
     awardXP(currentDayReward.xp);
 
     // Save date
-    setLastClaimDate(today);
+    setLastClaimDateState({ userId, data: today });
 
     // Increment streak up to 7
-    setDailyRewardStreak((prev) => (prev >= 7 ? 1 : prev + 1));
+    setDailyRewardStreakState((prev) => ({
+      userId,
+      data: (prev?.data >= 7 ? 1 : (prev?.data || 1) + 1),
+    }));
   };
 
   // Reset claim streak if user skipped a day (Simulated helper checks on page mount)
@@ -187,10 +220,10 @@ export function GamificationProvider({ children }) {
       
       // If skipped more than 1 day, reset claim streak
       if (diffDays > 1) {
-        setDailyRewardStreak(1);
+        setDailyRewardStreakState({ userId, data: 1 });
       }
     }
-  }, [lastClaimDate]);
+  }, [lastClaimDate, userId]);
 
   // --- 6. Mock Leaderboard with Dynamic User XP ---
   const leaderboard = useMemo(() => {

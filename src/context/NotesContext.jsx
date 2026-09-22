@@ -1,13 +1,8 @@
-import React, { createContext, useState, useEffect, useContext } from "react";
+import React, { createContext, useState, useEffect, useContext, useRef } from "react";
 import { AuthContext } from "./AuthContext";
 import authorization from "../services/auth/authorization.js";
 import { PERMISSIONS } from "../services/auth/permissionDefinitions.js";
-
-// =======================================================
-// NotesContext.jsx
-// Notion-style local storage notes manager context provider
-// Resilient Array Guarding for LocalStorage State
-// =======================================================
+import storageService from "../services/storageService.js";
 
 export const NotesContext = createContext();
 
@@ -38,36 +33,44 @@ const INITIAL_NOTES = [
 
 export function NotesProvider({ children }) {
   const { user } = useContext(AuthContext) || {};
+  const userId = user?.id || "guest";
 
-  // --- 1. Folders ---
-  const [folders, setFolders] = useState(() => {
-    try {
-      const saved = localStorage.getItem("notes_folders_list");
-      const parsed = saved ? JSON.parse(saved) : null;
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_FOLDERS;
-    } catch {
-      return INITIAL_FOLDERS;
-    }
-  });
+  // --- 1. Folders State (stamped with owner userId) ---
+  const [foldersState, setFoldersState] = useState(() => ({
+    userId,
+    data: storageService.getInitialScopedData("notes_folders_list", userId, INITIAL_FOLDERS),
+  }));
+
+  // --- 2. Notes list State (stamped with owner userId) ---
+  const [notesState, setNotesState] = useState(() => ({
+    userId,
+    data: storageService.getInitialScopedData("notes_data_list", userId, INITIAL_NOTES),
+  }));
+
+  // --- Rehydrate when user identity changes ---
+  useEffect(() => {
+    const freshFolders = storageService.getInitialScopedData("notes_folders_list", userId, INITIAL_FOLDERS);
+    const freshNotes = storageService.getInitialScopedData("notes_data_list", userId, INITIAL_NOTES);
+    setFoldersState({ userId, data: freshFolders });
+    setNotesState({ userId, data: freshNotes });
+  }, [userId]);
+
+  // --- Persist scoped state updates ONLY when in-memory state matches active userId ---
+  useEffect(() => {
+    if (foldersState.userId !== userId) return;
+    const key = storageService.getUserKey("notes_folders_list", userId);
+    storageService.set(key, JSON.stringify(foldersState.data));
+  }, [foldersState, userId]);
 
   useEffect(() => {
-    localStorage.setItem("notes_folders_list", JSON.stringify(folders));
-  }, [folders]);
+    if (notesState.userId !== userId) return;
+    const key = storageService.getUserKey("notes_data_list", userId);
+    storageService.set(key, JSON.stringify(notesState.data));
+  }, [notesState, userId]);
 
-  // --- 2. Notes list ---
-  const [notes, setNotes] = useState(() => {
-    try {
-      const saved = localStorage.getItem("notes_data_list");
-      const parsed = saved ? JSON.parse(saved) : null;
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_NOTES;
-    } catch {
-      return INITIAL_NOTES;
-    }
-  });
+  const folders = foldersState.userId === userId ? foldersState.data : INITIAL_FOLDERS;
+  const notes = notesState.userId === userId ? notesState.data : INITIAL_NOTES;
 
-  useEffect(() => {
-    localStorage.setItem("notes_data_list", JSON.stringify(notes));
-  }, [notes]);
 
   // --- Actions ---
   const addNote = (noteData = {}) => {
@@ -91,7 +94,10 @@ export function NotesProvider({ children }) {
       updatedAt: new Date().toISOString(),
     };
 
-    setNotes((prev) => [newNote, ...(Array.isArray(prev) ? prev : [])]);
+    setNotesState((prev) => ({
+      userId,
+      data: [newNote, ...(Array.isArray(prev?.data) ? prev.data : [])],
+    }));
     return newNote;
   };
 
@@ -99,16 +105,22 @@ export function NotesProvider({ children }) {
     if (!user || !authorization.hasPermission(user, PERMISSIONS.MANAGE_NOTES)) {
       return;
     }
-    setNotes((prev) =>
-      (Array.isArray(prev) ? prev : []).map((n) => (n.id === id ? { ...n, ...updatedFields, updatedAt: new Date().toISOString() } : n))
-    );
+    setNotesState((prev) => ({
+      userId,
+      data: (Array.isArray(prev?.data) ? prev.data : []).map((n) =>
+        n.id === id ? { ...n, ...updatedFields, updatedAt: new Date().toISOString() } : n
+      ),
+    }));
   };
 
   const deleteNote = (id) => {
     if (!user || !authorization.hasPermission(user, PERMISSIONS.MANAGE_NOTES)) {
       return;
     }
-    setNotes((prev) => (Array.isArray(prev) ? prev : []).filter((n) => n.id !== id));
+    setNotesState((prev) => ({
+      userId,
+      data: (Array.isArray(prev?.data) ? prev.data : []).filter((n) => n.id !== id),
+    }));
   };
 
   const addFolder = (name) => {
@@ -117,9 +129,12 @@ export function NotesProvider({ children }) {
       return;
     }
     const cleanName = name.trim();
-    setFolders((prev) => {
-      const list = Array.isArray(prev) ? prev : INITIAL_FOLDERS;
-      return list.includes(cleanName) ? list : [...list, cleanName];
+    setFoldersState((prev) => {
+      const list = Array.isArray(prev?.data) ? prev.data : INITIAL_FOLDERS;
+      return {
+        userId,
+        data: list.includes(cleanName) ? list : [...list, cleanName],
+      };
     });
   };
 

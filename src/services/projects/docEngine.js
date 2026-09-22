@@ -5,7 +5,7 @@
 // Requirements, Design Docs, Meeting Notes, Research).
 // =======================================================
 
-import storageService from "../storageService";
+import storageService from "../storageService.js";
 
 export const DOC_CATEGORIES = ["Overview", "Architecture", "Requirements", "Design Spec", "Meeting Notes", "Research"];
 

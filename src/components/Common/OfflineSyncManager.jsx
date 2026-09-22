@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext, useMemo } from "react";
 import { WorkspaceManagerContext } from "../../context/WorkspaceManagerContext";
 import { NotificationContext } from "../../context/NotificationContext";
+import { AuthContext } from "../../context/AuthContext";
 import offlineSyncService from "../../services/offlineSyncService";
 import Card from "./Card";
 import Button from "./Button";
@@ -8,6 +9,8 @@ import Badge from "./Badge";
 
 export function OfflineSyncManager() {
   const { activeWorkspaceId } = useContext(WorkspaceManagerContext);
+  const { user } = useContext(AuthContext) || {};
+  const userId = user?.id || "guest";
 
   const [isOpen, setIsOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(offlineSyncService.isOnline());
@@ -23,9 +26,9 @@ export function OfflineSyncManager() {
     };
 
     const handleRegistryChange = () => {
-      setSyncQueue(offlineSyncService.getSyncQueue(activeWorkspaceId));
-      setConflicts(offlineSyncService.getConflicts(activeWorkspaceId));
-      setLastSynced(offlineSyncService.getLastSyncedTime(activeWorkspaceId));
+      setSyncQueue(offlineSyncService.getSyncQueue(activeWorkspaceId, userId));
+      setConflicts(offlineSyncService.getConflicts(activeWorkspaceId, userId));
+      setLastSynced(offlineSyncService.getLastSyncedTime(activeWorkspaceId, userId));
     };
 
     // Listeners bindings
@@ -47,7 +50,7 @@ export function OfflineSyncManager() {
       window.removeEventListener("sync_queue_update", handleRegistryChange);
       window.removeEventListener("sync_conflicts_update", handleRegistryChange);
     };
-  }, [activeWorkspaceId]);
+  }, [activeWorkspaceId, userId]);
 
   const handleToggleSimulation = () => {
     const nextSimStatus = offlineSyncService.isOnline();
@@ -65,20 +68,20 @@ export function OfflineSyncManager() {
 
     setTimeout(() => {
       setSyncLoading(false);
-      offlineSyncService.clearQueue(activeWorkspaceId);
-      // Save last synced time
-      localStorage.setItem(`${activeWorkspaceId}_last_synced_time`, new Date().toLocaleTimeString());
-      setLastSynced(new Date().toLocaleTimeString());
+      offlineSyncService.clearQueue(activeWorkspaceId, userId);
+      const nowStr = new Date().toLocaleTimeString();
+      offlineSyncService.setLastSyncedTime(nowStr, activeWorkspaceId, userId);
+      setLastSynced(nowStr);
       if (addNotification) addNotification("Cloud Sync Complete", "Synced local updates to cloud server successfully!", "success", "system");
     }, 1500);
   };
 
   const handleTriggerConflict = () => {
-    offlineSyncService.triggerMockConflict(activeWorkspaceId);
+    offlineSyncService.triggerMockConflict(activeWorkspaceId, userId);
   };
 
   const handleResolveConflict = (id, choice) => {
-    offlineSyncService.resolveConflict(id, choice, activeWorkspaceId);
+    offlineSyncService.resolveConflict(id, choice, activeWorkspaceId, userId);
   };
 
   return (

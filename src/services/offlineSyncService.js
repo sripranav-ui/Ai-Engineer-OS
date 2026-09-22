@@ -1,5 +1,5 @@
-import logger from "../utils/logger";
-import storageService from "../services/storageService";
+import logger from "../utils/logger.js";
+import storageService from "../services/storageService.js";
 
 /**
  * Offline Sync Service Strategy
@@ -26,50 +26,73 @@ export const offlineSyncService = {
   },
 
   /**
-   * Retrieves pending sync queue list scoped by active workspace
+   * Retrieves pending sync queue list scoped by active user and workspace
    */
-  getSyncQueue: (workspaceId = "default") => {
-    const raw = storageService.get(`${workspaceId}_sync_queue`);
-    return raw ? JSON.parse(raw) : [];
+  getSyncQueue: (workspaceId = "default", userId = null) => {
+    const activeUserId = userId || storageService.getCurrentUserId();
+    const key = storageService.getScopedKey("sync_queue", activeUserId, workspaceId);
+    const raw = storageService.get(key);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      // Filter strictly: ignore items without userId or belonging to another user
+      return parsed.filter(item => item && item.userId === activeUserId && item.workspaceId === workspaceId);
+    } catch {
+      return [];
+    }
   },
 
   /**
-   * Appends action to sync queue
+   * Appends action to user + workspace scoped sync queue
    */
-  addToQueue: (action, workspaceId = "default") => {
-    const queue = offlineSyncService.getSyncQueue(workspaceId);
+  addToQueue: (action, workspaceId = "default", userId = null) => {
+    const activeUserId = userId || storageService.getCurrentUserId();
+    const queue = offlineSyncService.getSyncQueue(workspaceId, activeUserId);
     const item = {
       id: Date.now(),
+      userId: activeUserId,
+      workspaceId,
       actionType: action.type, // e.g. "UPDATE_NOTE", "COMPLETE_LESSON"
       payload: action.payload,
       timestamp: new Date().toISOString()
     };
     queue.push(item);
-    storageService.set(`${workspaceId}_sync_queue`, JSON.stringify(queue));
-    logger.info("[OfflineSyncService] Appended action item to sync queue:", item);
-    window.dispatchEvent(new Event("sync_queue_update"));
+    const key = storageService.getScopedKey("sync_queue", activeUserId, workspaceId);
+    storageService.set(key, JSON.stringify(queue));
+    logger.info("[OfflineSyncService] Appended action item to user-scoped sync queue:", item);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("sync_queue_update"));
+    }
   },
 
   /**
-   * Clears queue items
+   * Clears queue items for user + workspace
    */
-  clearQueue: (workspaceId = "default") => {
-    storageService.remove(`${workspaceId}_sync_queue`);
-    window.dispatchEvent(new Event("sync_queue_update"));
+  clearQueue: (workspaceId = "default", userId = null) => {
+    const activeUserId = userId || storageService.getCurrentUserId();
+    const key = storageService.getScopedKey("sync_queue", activeUserId, workspaceId);
+    storageService.remove(key);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("sync_queue_update"));
+    }
   },
 
   /**
-   * Resolves conflicts
+   * Resolves conflicts scoped by user + workspace
    */
-  getConflicts: (workspaceId = "default") => {
-    const raw = storageService.get(`${workspaceId}_sync_conflicts`);
+  getConflicts: (workspaceId = "default", userId = null) => {
+    const activeUserId = userId || storageService.getCurrentUserId();
+    const key = storageService.getScopedKey("sync_conflicts", activeUserId, workspaceId);
+    const raw = storageService.get(key);
     return raw ? JSON.parse(raw) : [];
   },
 
   /**
    * Creates a mock conflict for testing conflict resolution UI
    */
-  triggerMockConflict: (workspaceId = "default") => {
+  triggerMockConflict: (workspaceId = "default", userId = null) => {
+    const activeUserId = userId || storageService.getCurrentUserId();
     const conflicts = [
       {
         id: "conflict_1",
@@ -80,30 +103,48 @@ export const offlineSyncService = {
         timestamp: new Date().toISOString()
       }
     ];
-    storageService.set(`${workspaceId}_sync_conflicts`, JSON.stringify(conflicts));
-    window.dispatchEvent(new Event("sync_conflicts_update"));
+    const key = storageService.getScopedKey("sync_conflicts", activeUserId, workspaceId);
+    storageService.set(key, JSON.stringify(conflicts));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("sync_conflicts_update"));
+    }
     logger.info("[OfflineSyncService] Triggered mock sync conflict.");
   },
 
   /**
    * Resolves a conflict choice
    */
-  resolveConflict: (conflictId, choice, workspaceId = "default") => {
+  resolveConflict: (conflictId, choice, workspaceId = "default", userId = null) => {
+    const activeUserId = userId || storageService.getCurrentUserId();
     logger.info(`[OfflineSyncService] Resolving conflict ${conflictId} using choice "${choice}"...`);
-    const conflicts = offlineSyncService.getConflicts(workspaceId);
+    const conflicts = offlineSyncService.getConflicts(workspaceId, activeUserId);
     const nextConflicts = conflicts.filter(c => c.id !== conflictId);
-    storageService.set(`${workspaceId}_sync_conflicts`, JSON.stringify(nextConflicts));
+    const key = storageService.getScopedKey("sync_conflicts", activeUserId, workspaceId);
+    storageService.set(key, JSON.stringify(nextConflicts));
     
     // Set last synced timestamp
-    storageService.set(`${workspaceId}_last_synced_time`, new Date().toISOString());
-    window.dispatchEvent(new Event("sync_conflicts_update"));
+    offlineSyncService.setLastSyncedTime(new Date().toLocaleTimeString(), workspaceId, activeUserId);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("sync_conflicts_update"));
+    }
+  },
+
+  /**
+   * Sets last synced timestamp
+   */
+  setLastSyncedTime: (timeString, workspaceId = "default", userId = null) => {
+    const activeUserId = userId || storageService.getCurrentUserId();
+    const key = storageService.getScopedKey("last_synced_time", activeUserId, workspaceId);
+    storageService.set(key, timeString || new Date().toLocaleTimeString());
   },
 
   /**
    * Fetches last synced timestamp
    */
-  getLastSyncedTime: (workspaceId = "default") => {
-    return storageService.get(`${workspaceId}_last_synced_time`) || "Never";
+  getLastSyncedTime: (workspaceId = "default", userId = null) => {
+    const activeUserId = userId || storageService.getCurrentUserId();
+    const key = storageService.getScopedKey("last_synced_time", activeUserId, workspaceId);
+    return storageService.get(key) || "Never";
   }
 };
 
