@@ -1,6 +1,7 @@
 import React, { Suspense } from "react";
 import { PageSkeleton } from "../Common/Skeleton.jsx";
 
+const DashboardPage = React.lazy(() => import("../../pages/DashboardPage.jsx"));
 const AssistantPage = React.lazy(() => import("../../pages/AssistantPage.jsx"));
 const CodingWorkspacePage = React.lazy(() => import("../../pages/CodingWorkspacePage.jsx"));
 const KnowledgeHubPage = React.lazy(() => import("../../pages/KnowledgeHubPage.jsx"));
@@ -15,7 +16,8 @@ export function DesktopMainWorkspace({ activeTab, children }) {
     <div className="flex-1 h-full w-full bg-[#050508] overflow-hidden relative">
       {children || (
         <Suspense fallback={<PageSkeleton />}>
-          {(activeTab === "assistant" || activeTab === "chat" || activeTab === "dashboard") && <AssistantPage />}
+          {(activeTab === "dashboard" || activeTab === "workspace") && <DashboardPage />}
+          {(activeTab === "assistant" || activeTab === "chat") && <AssistantPage />}
           {(activeTab === "studio" || activeTab === "coding") && <CodingWorkspacePage />}
           {(activeTab === "knowledge" || activeTab === "graph") && <KnowledgeHubPage />}
           {activeTab === "projects" && <ProjectsPage />}

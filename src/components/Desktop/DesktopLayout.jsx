@@ -12,11 +12,11 @@ import { Search, X, CheckCircle, AlertTriangle, AlertCircle, Info } from "lucide
 import "./desktopStyles.css";
 
 const PATH_TAB_MAP = {
-  "/": "assistant",
+  "/": "dashboard",
+  "/dashboard": "dashboard",
+  "/workspace": "dashboard",
   "/assistant": "assistant",
-  "/dashboard": "assistant",
   "/chat": "assistant",
-  "/workspace": "assistant",
   "/coding-workspace": "studio",
   "/coding": "studio",
   "/knowledge": "knowledge",
@@ -33,10 +33,10 @@ const PATH_TAB_MAP = {
 };
 
 const TAB_PATH_MAP = {
-  assistant: "/",
-  chat: "/",
   dashboard: "/",
   workspace: "/",
+  assistant: "/assistant",
+  chat: "/assistant",
   studio: "/coding-workspace",
   coding: "/coding-workspace",
   knowledge: "/knowledge",
@@ -56,7 +56,7 @@ export function DesktopLayout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const currentTabFromPath = PATH_TAB_MAP[location.pathname] || "assistant";
+  const currentTabFromPath = PATH_TAB_MAP[location.pathname] || "dashboard";
   const [activeTab, setActiveTab] = useState(currentTabFromPath);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -74,7 +74,7 @@ export function DesktopLayout({ children }) {
   const notifications = notificationCtx?.notifications || [];
 
   useEffect(() => {
-    const tab = PATH_TAB_MAP[location.pathname] || "assistant";
+    const tab = PATH_TAB_MAP[location.pathname] || "dashboard";
     setActiveTab(tab);
   }, [location.pathname]);
 

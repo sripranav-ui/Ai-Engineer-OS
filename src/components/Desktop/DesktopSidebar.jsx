@@ -1,10 +1,11 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, Code, Database, Folder, CheckSquare, FileText, Settings } from "lucide-react";
+import { LayoutDashboard, MessageSquare, Code, Database, Folder, CheckSquare, FileText, Settings } from "lucide-react";
 
 // Core Navigation Destinations
 const CORE_NAV_ITEMS = [
-  { id: "assistant", path: "/", label: "Assistant", icon: MessageSquare },
+  { id: "dashboard", path: "/", label: "Dashboard", icon: LayoutDashboard },
+  { id: "assistant", path: "/assistant", label: "Assistant", icon: MessageSquare },
   { id: "studio", path: "/coding-workspace", label: "Studio", icon: Code },
   { id: "knowledge", path: "/knowledge", label: "Knowledge", icon: Database },
   { id: "projects", path: "/projects", label: "Projects", icon: Folder },

@@ -1,17 +1,12 @@
 import React from "react";
-import AIChatWindow from "../AIChat/AIChatWindow.jsx";
+import DashboardPage from "../../pages/DashboardPage.jsx";
 
 // =======================================================
-// AIDashboardWindow.jsx — Dashboard Concept Completely Deleted
-// Directly renders AI Assistant Home Workspace
+// AIDashboardWindow.jsx — Modern AI Engineer OS Dashboard Window
 // =======================================================
 
 export function AIDashboardWindow() {
-  return (
-    <div className="h-full w-full bg-[#050508] text-slate-100 font-sans overflow-hidden">
-      <AIChatWindow />
-    </div>
-  );
+  return <DashboardPage />;
 }
 
 export default AIDashboardWindow;

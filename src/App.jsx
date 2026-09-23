@@ -19,6 +19,7 @@ const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
 const AnalyticsPage = React.lazy(() => import("./pages/AnalyticsPage"));
 const PlannerPage = React.lazy(() => import("./pages/PlannerPage"));
 const AssistantPage = React.lazy(() => import("./pages/AssistantPage"));
+const DashboardPage = React.lazy(() => import("./pages/DashboardPage"));
 const PlacementPage = React.lazy(() => import("./pages/PlacementPage"));
 
 // Auth & Standalone Pages
@@ -104,9 +105,17 @@ function App() {
 
             {/* Protected Application Routes */}
             <Route element={<ProtectedRoutesWrapper />}>
-              {/* Home Page: Conversational AI Assistant Canvas */}
+              {/* Home Page: Command Center & Mission Workspace */}
               <Route
                 path="/"
+                element={
+                  <Suspense fallback={<PageSkeleton />}>
+                    <DashboardPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/assistant"
                 element={
                   <AuthorizationGuard permission={PERMISSIONS.USE_AI_ASSISTANT} fallback={<UnauthorizedFallback />}>
                     <Suspense fallback={<PageSkeleton />}>
@@ -115,10 +124,9 @@ function App() {
                   </AuthorizationGuard>
                 }
               />
-              <Route path="/assistant" element={<Navigate to="/" replace />} />
               <Route path="/dashboard" element={<Navigate to="/" replace />} />
               <Route path="/workspace" element={<Navigate to="/" replace />} />
-              <Route path="/chat" element={<Navigate to="/" replace />} />
+              <Route path="/chat" element={<Navigate to="/assistant" replace />} />
               <Route path="/tasks" element={<Navigate to="/planner" replace />} />
 
               {/* Core Feature Pages */}
