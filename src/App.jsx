@@ -164,6 +164,8 @@ function App() {
                 }
               />
               <Route path="/settings" element={<Suspense fallback={<PageSkeleton />}><SettingsPage /></Suspense>} />
+              <Route path="/learning" element={<Suspense fallback={<PageSkeleton />}><LearningPage /></Suspense>} />
+              <Route path="/community" element={<Suspense fallback={<PageSkeleton />}><CommunityPage /></Suspense>} />
               <Route path="/analytics" element={<Suspense fallback={<PageSkeleton />}><AnalyticsPage /></Suspense>} />
               <Route path="/profile" element={<Suspense fallback={<PageSkeleton />}><ProfilePage /></Suspense>} />
             </Route>

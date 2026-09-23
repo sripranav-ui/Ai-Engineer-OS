@@ -27,6 +27,7 @@ const PATH_TAB_MAP = {
   "/notes": "notes",
   "/settings": "settings",
   "/learning": "learning",
+  "/community": "community",
   "/analytics": "analytics",
   "/profile": "profile",
 };
@@ -46,6 +47,7 @@ const TAB_PATH_MAP = {
   notes: "/notes",
   settings: "/settings",
   learning: "/learning",
+  community: "/community",
   analytics: "/analytics",
   profile: "/profile",
 };
