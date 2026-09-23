@@ -279,6 +279,7 @@ export function AIChatWindow() {
           promptText: text,
           conversationId: activeConvId,
           modelId: selectedModelId,
+          provider: activeModelObj.provider,
           useRag,
           agentMode,
           attachments: attachedFiles,

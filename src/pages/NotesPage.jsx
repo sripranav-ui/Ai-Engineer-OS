@@ -11,12 +11,13 @@ function NotesPage() {
   useDocumentMetadata("Notes & Vault", "Notion-style markdown notes workspace.");
 
   const { notes, addNote, updateNote, deleteNote } = useContext(NotesContext);
-  const [activeNoteId, setActiveNoteId] = useState(notes && notes[0] ? notes[0].id : null);
+  const safeNotes = useMemo(() => (Array.isArray(notes) ? notes : []), [notes]);
+  const [activeNoteId, setActiveNoteId] = useState(safeNotes[0]?.id || null);
   const [searchQuery, setSearchQuery] = useState("");
 
   const activeNote = useMemo(() => {
-    return notes.find((n) => n.id === activeNoteId) || notes[0] || null;
-  }, [notes, activeNoteId]);
+    return safeNotes.find((n) => n && n.id === activeNoteId) || safeNotes[0] || null;
+  }, [safeNotes, activeNoteId]);
 
   const handleCreateNote = () => {
     const newNote = addNote({
@@ -52,8 +53,8 @@ function NotesPage() {
         </div>
 
         <div className="flex-1 space-y-1 overflow-y-auto v2-scrollbar">
-          {notes
-            .filter((n) => n.title.toLowerCase().includes(searchQuery.toLowerCase()))
+          {safeNotes
+            .filter((n) => n && n.title && n.title.toLowerCase().includes(searchQuery.toLowerCase()))
             .map((note) => {
               const isActive = note.id === activeNoteId;
               return (

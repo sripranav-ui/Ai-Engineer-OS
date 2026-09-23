@@ -31,6 +31,7 @@ export class AIOrchestrator {
       promptText = "",
       conversationId = null,
       modelId = null,
+      provider = null,
       useRag = true,
       studioContext = null,
       attachments = [],
@@ -147,6 +148,7 @@ export class AIOrchestrator {
 
     const options = {
       model: modelId,
+      provider,
       signal,
     };
 

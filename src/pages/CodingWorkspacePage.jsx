@@ -169,6 +169,20 @@ export function CodingWorkspacePage() {
   const [insertedToastMsg, setInsertedToastMsg] = useState(null);
   const processedInsertIds = useRef(new Set());
 
+  const currentFiles = useMemo(() => {
+    const files = workspacesData[activeWorkspace];
+    return Array.isArray(files) ? files : [];
+  }, [workspacesData, activeWorkspace]);
+
+  const activeFile = useMemo(() => {
+    return currentFiles.find((f) => f && f.name === activeTab) || currentFiles[0] || null;
+  }, [currentFiles, activeTab]);
+
+  const activeSplitFile = useMemo(() => {
+    if (!activeSplitTab) return null;
+    return currentFiles.find((f) => f && f.name === activeSplitTab) || null;
+  }, [currentFiles, activeSplitTab]);
+
   // Persistence & Phase 5 Studio Context Exporter for AI Orchestrator
   useEffect(() => {
     const safeTabs = Array.isArray(openTabs) ? openTabs : ["main.py"];
@@ -265,20 +279,6 @@ export function CodingWorkspacePage() {
       if (unsubscribe) unsubscribe();
     };
   }, [activeTab, activeWorkspace]);
-
-  const currentFiles = useMemo(() => {
-    const files = workspacesData[activeWorkspace];
-    return Array.isArray(files) ? files : [];
-  }, [workspacesData, activeWorkspace]);
-
-  const activeFile = useMemo(() => {
-    return currentFiles.find((f) => f && f.name === activeTab) || currentFiles[0] || null;
-  }, [currentFiles, activeTab]);
-
-  const activeSplitFile = useMemo(() => {
-    if (!activeSplitTab) return null;
-    return currentFiles.find((f) => f && f.name === activeSplitTab) || null;
-  }, [currentFiles, activeSplitTab]);
 
   const handleEditContent = (value, pane = "left") => {
     if (!hasPermission(PERMISSIONS.MODIFY_WORKSPACE)) {

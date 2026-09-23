@@ -64,7 +64,7 @@ export function ProjectsProvider({ children }) {
       if (!user || !authorization.hasPermission(user, PERMISSIONS.CREATE_PROJECT)) {
         return null;
       }
-      const newProj = templateEngine.createFromTemplate(templateId, customTitle, activeWorkspaceId);
+      const newProj = templateEngine.createFromTemplate(templateId, customTitle, activeWorkspaceId, userId);
       const updated = projectEngine.getProjects(activeWorkspaceId, userId);
       setProjects(updated);
       setActiveProjectId(newProj.id);

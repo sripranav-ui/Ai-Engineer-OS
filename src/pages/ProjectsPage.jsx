@@ -14,25 +14,28 @@ function ProjectsPage() {
   const { projects } = useContext(ProjectsContext);
   useDocumentMetadata("Projects", "Build, track, and showcase your AI projects.");
 
-  const [selectedProjectId, setSelectedProjectId] = useState(projects[0]?.id || null);
+  const [selectedProjectId, setSelectedProjectId] = useState(projects?.[0]?.id || null);
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("All");
 
   useEffect(() => {
-    if (!selectedProjectId && projects.length > 0) {
+    if (!selectedProjectId && projects?.length > 0) {
       setSelectedProjectId(projects[0].id);
     }
   }, [projects, selectedProjectId]);
 
   const selectedProject = useMemo(() => {
-    return projects.find((p) => p.id === selectedProjectId) || projects[0] || null;
+    return (projects || []).find((p) => p && p.id === selectedProjectId) || projects?.[0] || null;
   }, [projects, selectedProjectId]);
 
   const filteredProjects = useMemo(() => {
-    return projects.filter((project) => {
+    return (projects || []).filter((project) => {
+      if (!project) return false;
+      const title = project.title || "";
+      const desc = project.description || "";
       const matchesSearch =
-        project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.description.toLowerCase().includes(searchQuery.toLowerCase());
+        title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        desc.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesDifficulty =
         difficultyFilter === "All" || project.difficulty === difficultyFilter;
       return matchesSearch && matchesDifficulty;
@@ -40,8 +43,9 @@ function ProjectsPage() {
   }, [projects, searchQuery, difficultyFilter]);
 
   const metrics = useMemo(() => {
-    const totalProjects = projects.length;
-    const completedProjects = projects.filter((p) => p.completed).length;
+    const list = Array.isArray(projects) ? projects : [];
+    const totalProjects = list.length;
+    const completedProjects = list.filter((p) => p && p.completed).length;
     return { totalProjects, completedProjects };
   }, [projects]);
 

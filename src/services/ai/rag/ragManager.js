@@ -533,7 +533,7 @@ export class RAGManager {
         while (start < text.length) {
           var end = start + chunkSize;
           if (end < text.length) {
-            var dotIdx = Math.max(text.lastIndexOf(".", end), text.lastIndexOf("\n", end));
+            var dotIdx = Math.max(text.lastIndexOf(".", end), text.lastIndexOf("\\n", end));
             if (dotIdx > start + chunkSize * 0.5) end = dotIdx + 1;
             else {
               var spIdx = text.lastIndexOf(" ", end);

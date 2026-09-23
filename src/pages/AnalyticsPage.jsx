@@ -60,16 +60,18 @@ function AnalyticsPage() {
   }, [activeWorkspaceId, reportPeriod]);
 
   // Data calculations
-  const totalProjects = projects.length;
-  const completedProjects = projects.filter((p) => p.completed).length;
+  const safeProjects = Array.isArray(projects) ? projects : [];
+  const totalProjects = safeProjects.length;
+  const completedProjects = safeProjects.filter((p) => p && p.completed).length;
 
   const getColStatus = (project) => {
+    if (!project) return "Not Started";
     return project.kanbanStatus ||
       (project.completed ? "Completed" : (project.status === "Unlocked" ? "In Progress" : "Not Started"));
   };
-  const notStartedCount = projects.filter((p) => getColStatus(p) === "Not Started").length;
-  const inProgressCount = projects.filter((p) => getColStatus(p) === "In Progress").length;
-  const completedCount = projects.filter((p) => getColStatus(p) === "Completed").length;
+  const notStartedCount = safeProjects.filter((p) => getColStatus(p) === "Not Started").length;
+  const inProgressCount = safeProjects.filter((p) => getColStatus(p) === "In Progress").length;
+  const completedCount = safeProjects.filter((p) => getColStatus(p) === "Completed").length;
 
   const projectStatusData = useMemo(() => [
     { name: "Not Started", value: notStartedCount, color: "#64748b" },
